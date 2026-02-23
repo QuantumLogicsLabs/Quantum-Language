@@ -1,2 +1,2 @@
 # Quantum language (.sa files) - mapped to Python for GitHub stats
-*.sa linguist-language=Python
+*.sa linguist-language=Hack 
