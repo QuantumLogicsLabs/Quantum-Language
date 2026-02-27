@@ -19,6 +19,7 @@ method3_error.txt
 output.txt
 
 # IDE files
+/.vscode
 .vscode
 .vscode/
 *.vcxproj*
