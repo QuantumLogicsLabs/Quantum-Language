@@ -13,3 +13,25 @@ if a>50:
     print(chucha)
 else
     print(kutta)
+
+x=45;
+# Pure Python style
+if x > 0:
+    print("positive")
+elif x == 0:
+    print("zero")
+else:
+    print("negative")
+
+count=0;
+while count < 10:
+    count += 1
+
+
+# Still works — brace style unchanged
+if x > 0 {
+    print("positive")
+}
+
+# Still works — single line, no braces
+if x > 0 print("positive")
