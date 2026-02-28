@@ -53,26 +53,32 @@ ASTNodePtr Parser::parse()
 ASTNodePtr Parser::parseStatement()
 {
     skipNewlines();
-    
+
     // Skip Python-style decorators (e.g. @property, @dataclass)
-    while (check(TokenType::DECORATOR)) {
+    while (check(TokenType::DECORATOR))
+    {
         consume(); // eat @
-        if (check(TokenType::IDENTIFIER)) {
+        if (check(TokenType::IDENTIFIER))
+        {
             consume(); // eat decorator name
             // Optional call parens e.g. @decorator(args)
-            if (check(TokenType::LPAREN)) {
+            if (check(TokenType::LPAREN))
+            {
                 consume(); // eat (
                 int depth = 1;
-                while (!atEnd() && depth > 0) {
-                    if (check(TokenType::LPAREN)) depth++;
-                    else if (check(TokenType::RPAREN)) depth--;
+                while (!atEnd() && depth > 0)
+                {
+                    if (check(TokenType::LPAREN))
+                        depth++;
+                    else if (check(TokenType::RPAREN))
+                        depth--;
                     consume();
                 }
             }
         }
         skipNewlines();
     }
-    
+
     int ln = current().line;
     switch (current().type)
     {
@@ -372,11 +378,32 @@ ASTNodePtr Parser::parseClassDecl()
     int ln = current().line;
     auto name = expect(TokenType::IDENTIFIER, "Expected class name").value;
     std::string base;
-    if (check(TokenType::EXTENDS))
+
+    // Python-style: class Foo(Bar): or class Foo(Bar, ABC):
+    if (check(TokenType::LPAREN))
+    {
+        consume(); // eat '('
+        // grab first base class name
+        if (check(TokenType::IDENTIFIER))
+            base = consume().value;
+        else if (isCTypeKeyword(current().type))
+            base = consume().value;
+        // skip any additional bases: (A, B, C) — just use first
+        while (check(TokenType::COMMA))
+        {
+            consume();
+            if (check(TokenType::IDENTIFIER) || isCTypeKeyword(current().type))
+                consume(); // discard extra bases
+        }
+        expect(TokenType::RPAREN, "Expected ')' after base class list");
+    }
+    // Quantum/JS-style: class Foo extends Bar
+    else if (check(TokenType::EXTENDS))
     {
         consume();
         base = expect(TokenType::IDENTIFIER, "Expected base class name").value;
     }
+
     match(TokenType::COLON);
     skipNewlines();
 
@@ -388,29 +415,36 @@ ASTNodePtr Parser::parseClassDecl()
     {
         skipNewlines();
         // Check for 'pass' which just means an empty body
-        if (check(TokenType::IDENTIFIER) && current().value == "pass") {
+        if (check(TokenType::IDENTIFIER) && current().value == "pass")
+        {
             consume();
             skipNewlines();
             return;
         }
-        
+
         while (!check(TokenType::RBRACE) && !check(TokenType::DEDENT) && !atEnd())
         {
             skipNewlines();
             if (check(TokenType::RBRACE) || check(TokenType::DEDENT))
                 break;
-                
+
             // Handle decorators on methods
-            while (check(TokenType::DECORATOR)) {
+            while (check(TokenType::DECORATOR))
+            {
                 consume(); // eat @
-                if (check(TokenType::IDENTIFIER)) {
+                if (check(TokenType::IDENTIFIER))
+                {
                     consume(); // eat decorator name
-                    if (check(TokenType::LPAREN)) {
+                    if (check(TokenType::LPAREN))
+                    {
                         consume(); // eat (
                         int depth = 1;
-                        while (!atEnd() && depth > 0) {
-                            if (check(TokenType::LPAREN)) depth++;
-                            else if (check(TokenType::RPAREN)) depth--;
+                        while (!atEnd() && depth > 0)
+                        {
+                            if (check(TokenType::LPAREN))
+                                depth++;
+                            else if (check(TokenType::RPAREN))
+                                depth--;
                             consume();
                         }
                     }
@@ -442,6 +476,15 @@ ASTNodePtr Parser::parseClassDecl()
                 if (check(TokenType::IDENTIFIER))
                     consume(); // eat class name
                 auto params = parseParamList();
+
+                // Skip optional return type annotation: -> ReturnType
+                if (check(TokenType::ARROW))
+                {
+                    consume();
+                    while (!atEnd() && !check(TokenType::COLON) && !check(TokenType::LBRACE) && !check(TokenType::NEWLINE) && !check(TokenType::INDENT))
+                        consume();
+                }
+
                 match(TokenType::COLON);
                 skipNewlines();
                 auto body = parseBlock();
@@ -456,10 +499,13 @@ ASTNodePtr Parser::parseClassDecl()
             {
                 skipNewlines();
                 // If it's a pass inside the class but not the first thing
-                if (check(TokenType::IDENTIFIER) && current().value == "pass") {
+                if (check(TokenType::IDENTIFIER) && current().value == "pass")
+                {
                     consume();
                     skipNewlines();
-                } else if (!check(TokenType::RBRACE) && !check(TokenType::DEDENT)) {
+                }
+                else if (!check(TokenType::RBRACE) && !check(TokenType::DEDENT))
+                {
                     consume(); // skip whatever garbage token this is to avoid infinite loops
                 }
                 continue;
@@ -477,6 +523,16 @@ ASTNodePtr Parser::parseClassDecl()
                 methodName = "__str__";
 
             auto params = parseParamList();
+
+            // Skip optional return type annotation: -> ReturnType  (Python style)
+            if (check(TokenType::ARROW))
+            {
+                consume(); // eat ->
+                // consume tokens until we hit : or { or NEWLINE or INDENT
+                while (!atEnd() && !check(TokenType::COLON) && !check(TokenType::LBRACE) && !check(TokenType::NEWLINE) && !check(TokenType::INDENT))
+                    consume();
+            }
+
             match(TokenType::COLON);
             skipNewlines();
             auto body = parseBlock();
@@ -889,27 +945,34 @@ ASTNodePtr Parser::parseImportStmt(bool isFrom)
     int ln = current().line;
     ImportStmt stmt;
 
-    if (isFrom) {
+    if (isFrom)
+    {
         // from module.sub import A, B
         // Actually, we'll just read an identifier (maybe with dots in the future)
         stmt.module = expect(TokenType::IDENTIFIER, "Expected module name after 'from'").value;
         expect(TokenType::IMPORT, "Expected 'import' after module name in 'from' statement");
-        
-        do {
+
+        do
+        {
             ImportStmt::Item item;
             item.name = expect(TokenType::IDENTIFIER, "Expected item name to import").value;
-            if (match(TokenType::AS)) {
+            if (match(TokenType::AS))
+            {
                 item.alias = expect(TokenType::IDENTIFIER, "Expected alias after 'as'").value;
             }
             stmt.imports.push_back(item);
         } while (match(TokenType::COMMA));
-    } else {
+    }
+    else
+    {
         // import A as B, C
         stmt.module = ""; // No base module, importing directly
-        do {
+        do
+        {
             ImportStmt::Item item;
             item.name = expect(TokenType::IDENTIFIER, "Expected module name to import").value;
-            if (match(TokenType::AS)) {
+            if (match(TokenType::AS))
+            {
                 item.alias = expect(TokenType::IDENTIFIER, "Expected alias after 'as'").value;
             }
             stmt.imports.push_back(item);
@@ -947,24 +1010,31 @@ ASTNodePtr Parser::parseAssignment()
         bool hasElse = false;
         int checkPos = pos + 1;
         int depth = 0;
-        while (checkPos < tokens.size()) {
+        while (checkPos < tokens.size())
+        {
             TokenType t = tokens[checkPos].type;
-            if (t == TokenType::LPAREN || t == TokenType::LBRACKET || t == TokenType::LBRACE) depth++;
-            else if (t == TokenType::RPAREN || t == TokenType::RBRACKET || t == TokenType::RBRACE) {
-                if (depth == 0) break;
+            if (t == TokenType::LPAREN || t == TokenType::LBRACKET || t == TokenType::LBRACE)
+                depth++;
+            else if (t == TokenType::RPAREN || t == TokenType::RBRACKET || t == TokenType::RBRACE)
+            {
+                if (depth == 0)
+                    break;
                 depth--;
             }
-            else if (depth == 0 && t == TokenType::ELSE) {
+            else if (depth == 0 && t == TokenType::ELSE)
+            {
                 hasElse = true;
                 break;
             }
-            else if (depth == 0 && (t == TokenType::NEWLINE || t == TokenType::SEMICOLON || t == TokenType::COMMA)) {
+            else if (depth == 0 && (t == TokenType::NEWLINE || t == TokenType::SEMICOLON || t == TokenType::COMMA))
+            {
                 break;
             }
             checkPos++;
         }
 
-        if (hasElse) {
+        if (hasElse)
+        {
             consume(); // eat 'if'
             auto condition = parseOr();
             expect(TokenType::ELSE, "Expected 'else' in Python ternary expression");
@@ -1833,9 +1903,25 @@ std::vector<std::string> Parser::parseParamList()
         if (check(TokenType::COLON))
         {
             consume(); // eat :
-            // consume the type — could be identifier or type keyword
+            // consume the type — could be identifier, type keyword, or generic like List[X]
             if (check(TokenType::IDENTIFIER) || isCTypeKeyword(current().type))
-                consume();
+            {
+                consume(); // eat base type name
+                // Handle generic subscript: List[X], Dict[str, int], Optional[X], etc.
+                if (check(TokenType::LBRACKET))
+                {
+                    consume(); // eat '['
+                    int depth = 1;
+                    while (!atEnd() && depth > 0)
+                    {
+                        if (check(TokenType::LBRACKET))
+                            depth++;
+                        else if (check(TokenType::RBRACKET))
+                            depth--;
+                        consume();
+                    }
+                }
+            }
         }
 
         // Default value: "x = 5" or "x: int = 5" — skip "= expr"

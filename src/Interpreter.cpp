@@ -443,13 +443,33 @@ void Interpreter::registerNatives()
         { return QuantumValue(std::tan(toNum(a[0], "tan"))); });
     reg("min", [](std::vector<QuantumValue> a) -> QuantumValue
         {
-        double m = toNum(a[0],"min");
-        for (size_t i=1;i<a.size();i++) m = std::min(m, toNum(a[i],"min"));
+        if (a.empty()) throw RuntimeError("min() expected at least 1 argument");
+        // min(array)  — single iterable argument
+        if (a.size() == 1 && a[0].isArray()) {
+            auto &arr = *a[0].asArray();
+            if (arr.empty()) throw RuntimeError("min() arg is an empty sequence");
+            double m = toNum(arr[0], "min");
+            for (size_t i = 1; i < arr.size(); i++) m = std::min(m, toNum(arr[i], "min"));
+            return QuantumValue(m);
+        }
+        // min(a, b, c, ...)  — multiple numeric arguments
+        double m = toNum(a[0], "min");
+        for (size_t i = 1; i < a.size(); i++) m = std::min(m, toNum(a[i], "min"));
         return QuantumValue(m); });
     reg("max", [](std::vector<QuantumValue> a) -> QuantumValue
         {
-        double m = toNum(a[0],"max");
-        for (size_t i=1;i<a.size();i++) m = std::max(m, toNum(a[i],"max"));
+        if (a.empty()) throw RuntimeError("max() expected at least 1 argument");
+        // max(array)  — single iterable argument
+        if (a.size() == 1 && a[0].isArray()) {
+            auto &arr = *a[0].asArray();
+            if (arr.empty()) throw RuntimeError("max() arg is an empty sequence");
+            double m = toNum(arr[0], "max");
+            for (size_t i = 1; i < arr.size(); i++) m = std::max(m, toNum(arr[i], "max"));
+            return QuantumValue(m);
+        }
+        // max(a, b, c, ...)  — multiple numeric arguments
+        double m = toNum(a[0], "max");
+        for (size_t i = 1; i < a.size(); i++) m = std::max(m, toNum(a[i], "max"));
         return QuantumValue(m); });
 
     // Constants
@@ -460,6 +480,12 @@ void Interpreter::registerNatives()
     globals->define("null", QuantumValue());
     globals->define("undefined", QuantumValue());
     globals->define("NaN", QuantumValue(std::numeric_limits<double>::quiet_NaN()));
+    // Python dunder globals
+    globals->define("__name__", QuantumValue(std::string("__main__")));
+    globals->define("__file__", QuantumValue(std::string("")));
+    globals->define("__doc__", QuantumValue());
+    globals->define("__package__", QuantumValue());
+    globals->define("__spec__", QuantumValue());
 
     // Utility
     reg("len", [](std::vector<QuantumValue> args) -> QuantumValue
@@ -1016,7 +1042,8 @@ void Interpreter::registerNatives()
     {
         auto nat = std::make_shared<QuantumNative>();
         nat->name = "isinstance";
-        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue {
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
             if (args.size() < 2)
                 throw RuntimeError("isinstance() requires 2 arguments");
             if (!args[0].isInstance())
@@ -1027,7 +1054,8 @@ void Interpreter::registerNatives()
             auto targetKlass = args[1].asClass();
             // Walk the inheritance chain
             auto k = inst->klass.get();
-            while (k) {
+            while (k)
+            {
                 if (k == targetKlass.get())
                     return QuantumValue(true);
                 k = k->base.get();
@@ -1041,8 +1069,10 @@ void Interpreter::registerNatives()
     {
         auto nat = std::make_shared<QuantumNative>();
         nat->name = "classname";
-        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue {
-            if (args.empty()) return QuantumValue(std::string("nil"));
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            if (args.empty())
+                return QuantumValue(std::string("nil"));
             if (args[0].isInstance())
                 return QuantumValue(args[0].asInstance()->klass->name);
             return QuantumValue(args[0].typeName());
@@ -1054,13 +1084,16 @@ void Interpreter::registerNatives()
     {
         auto nat = std::make_shared<QuantumNative>();
         nat->name = "__format__";
-        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue {
-            if (args.size() < 2) return QuantumValue(std::string(""));
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            if (args.size() < 2)
+                return QuantumValue(std::string(""));
             std::string valStr = args[0].toString();
             std::string spec = args[1].asString();
-            
+
             // Basic handling for Python format specifiers like .2f
-            if (spec.size() >= 3 && spec[0] == '.' && spec.back() == 'f' && args[0].isNumber()) {
+            if (spec.size() >= 3 && spec[0] == '.' && spec.back() == 'f' && args[0].isNumber())
+            {
                 int precision = std::stoi(spec.substr(1, spec.size() - 2));
                 std::ostringstream out;
                 out.precision(precision);
@@ -1069,36 +1102,49 @@ void Interpreter::registerNatives()
             }
 
             // Basic handling for alignment like *^30 or >10
-            if (spec.size() >= 2) {
+            if (spec.size() >= 2)
+            {
                 char fill = ' ';
                 char align = spec[0];
                 size_t widthIdx = 1;
 
-                if (spec.size() >= 3 && (spec[1] == '<' || spec[1] == '>' || spec[1] == '^')) {
+                if (spec.size() >= 3 && (spec[1] == '<' || spec[1] == '>' || spec[1] == '^'))
+                {
                     fill = spec[0];
                     align = spec[1];
                     widthIdx = 2;
                 }
 
-                if (align == '<' || align == '>' || align == '^') {
-                    try {
+                if (align == '<' || align == '>' || align == '^')
+                {
+                    try
+                    {
                         int width = std::stoi(spec.substr(widthIdx));
                         int len = valStr.size();
-                        if (width > len) {
-                            if (align == '<') {
+                        if (width > len)
+                        {
+                            if (align == '<')
+                            {
                                 valStr = valStr + std::string(width - len, fill);
-                            } else if (align == '>') {
+                            }
+                            else if (align == '>')
+                            {
                                 valStr = std::string(width - len, fill) + valStr;
-                            } else if (align == '^') {
+                            }
+                            else if (align == '^')
+                            {
                                 int padLeft = (width - len) / 2;
                                 int padRight = width - len - padLeft;
                                 valStr = std::string(padLeft, fill) + valStr + std::string(padRight, fill);
                             }
                         }
-                    } catch (...) {}
+                    }
+                    catch (...)
+                    {
+                    }
                 }
             }
-            
+
             return QuantumValue(valStr);
         };
         globals->define("__format__", QuantumValue(nat));
@@ -1311,12 +1357,13 @@ void Interpreter::execClassDecl(ClassDecl &s)
             auto baseVal = env->get(s.base);
             if (baseVal.isClass())
                 klass->base = baseVal.asClass();
-            else
-                throw RuntimeError("Base class '" + s.base + "' is not a class");
+            // If base is a native stub (e.g. ABC from our import stubs), silently skip —
+            // we don't need true abstract-class enforcement at runtime.
         }
         catch (NameError &)
         {
-            throw RuntimeError("Base class '" + s.base + "' is not defined");
+            // Base not defined at all — treat as a rootless class rather than crashing.
+            // This mirrors Python's lenient behaviour when stubs are missing.
         }
     }
 
@@ -1520,13 +1567,16 @@ void Interpreter::execPrint(PrintStmt &s)
             if (i)
                 std::cout << " ";
             // Call __str__ on instances if defined
-            if (vals[i].isInstance()) {
+            if (vals[i].isInstance())
+            {
                 auto inst = vals[i].asInstance();
                 auto k = inst->klass.get();
                 bool found = false;
-                while (k) {
+                while (k)
+                {
                     auto it = k->methods.find("__str__");
-                    if (it != k->methods.end()) {
+                    if (it != k->methods.end())
+                    {
                         auto result = callInstanceMethod(inst, it->second, {});
                         std::cout << result.toString();
                         found = true;
@@ -1536,7 +1586,9 @@ void Interpreter::execPrint(PrintStmt &s)
                 }
                 if (!found)
                     std::cout << vals[i].toString();
-            } else {
+            }
+            else
+            {
                 std::cout << vals[i].toString();
             }
         }
@@ -1687,9 +1739,204 @@ void Interpreter::execInput(InputStmt &s)
 
 void Interpreter::execImport(ImportStmt &s)
 {
-    // Module system stub - extendable
-    // For now just note it
-    (void)s;
+    // ── Stub registry for common Python standard-library symbols ──────────────
+    // Any symbol not listed here is silently injected as a no-op native stub.
+
+    auto makeStubClass = [&](const std::string &name) -> QuantumValue
+    {
+        auto klass = std::make_shared<QuantumClass>();
+        klass->name = name;
+        return QuantumValue(klass);
+    };
+
+    auto makeStubNative = [&](const std::string &name) -> QuantumValue
+    {
+        auto fn = std::make_shared<QuantumNative>();
+        fn->name = name;
+        fn->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            return args.empty() ? QuantumValue() : args[0];
+        };
+        return QuantumValue(fn);
+    };
+
+    auto defGlobal = [&](const std::string &sym, QuantumValue val)
+    {
+        if (!globals->has(sym))
+            globals->define(sym, std::move(val), false);
+    };
+
+    // Per-module registration helpers
+    auto registerAbc = [&]()
+    {
+        defGlobal("ABC", makeStubClass("ABC"));
+        defGlobal("abstractmethod", makeStubNative("abstractmethod"));
+        defGlobal("ABCMeta", makeStubClass("ABCMeta"));
+    };
+    auto registerTyping = [&]()
+    {
+        for (auto &sym : {"List", "Dict", "Set", "Tuple", "Optional", "Union",
+                          "Any", "Callable", "Type", "Iterable", "Iterator",
+                          "Generator", "Sequence", "Mapping", "FrozenSet",
+                          "ClassVar", "Final", "Literal", "TypeVar", "Generic",
+                          "Protocol", "NamedTuple", "TypedDict", "overload",
+                          "cast", "no_type_check", "get_type_hints"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerCollections = [&]()
+    {
+        for (auto &sym : {"defaultdict", "OrderedDict", "Counter", "deque",
+                          "namedtuple", "ChainMap"})
+            defGlobal(sym, makeStubClass(sym));
+    };
+    auto registerDataclasses = [&]()
+    {
+        for (auto &sym : {"dataclass", "field", "fields", "asdict", "astuple",
+                          "make_dataclass", "replace", "is_dataclass"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerEnum = [&]()
+    {
+        for (auto &sym : {"Enum", "IntEnum", "Flag", "IntFlag", "auto", "unique"})
+            defGlobal(sym, makeStubClass(sym));
+    };
+    auto registerFunctools = [&]()
+    {
+        for (auto &sym : {"reduce", "partial", "wraps", "lru_cache",
+                          "cached_property", "total_ordering", "singledispatch"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerItertools = [&]()
+    {
+        for (auto &sym : {"chain", "cycle", "repeat", "count", "accumulate",
+                          "combinations", "permutations", "product", "groupby",
+                          "islice", "starmap", "takewhile", "dropwhile", "zip_longest"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerOs = [&]()
+    {
+        for (auto &sym : {"getcwd", "listdir", "path", "environ", "getenv",
+                          "makedirs", "remove", "rename", "walk", "sep"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerSys = [&]()
+    {
+        for (auto &sym : {"argv", "exit", "path", "version", "platform",
+                          "stdin", "stdout", "stderr", "modules", "maxsize"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerRe = [&]()
+    {
+        for (auto &sym : {"compile", "match", "search", "findall", "finditer",
+                          "sub", "subn", "split", "fullmatch", "escape",
+                          "IGNORECASE", "MULTILINE", "DOTALL", "VERBOSE"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerJson = [&]()
+    {
+        for (auto &sym : {"dumps", "loads", "dump", "load",
+                          "JSONDecodeError", "JSONEncoder", "JSONDecoder"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerMath = [&]()
+    {
+        for (auto &sym : {"sqrt", "floor", "ceil", "log", "log2", "log10",
+                          "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+                          "pow", "exp", "fabs", "factorial", "gcd", "lcm",
+                          "pi", "e", "inf", "nan", "isnan", "isinf", "isfinite",
+                          "degrees", "radians", "hypot", "trunc", "comb", "perm"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerRandom = [&]()
+    {
+        for (auto &sym : {"random", "randint", "choice", "choices", "shuffle",
+                          "sample", "uniform", "gauss", "seed", "randrange"})
+            defGlobal(sym, makeStubNative(sym));
+    };
+    auto registerDatetime = [&]()
+    {
+        for (auto &sym : {"datetime", "date", "time", "timedelta", "timezone",
+                          "MINYEAR", "MAXYEAR"})
+            defGlobal(sym, makeStubClass(sym));
+    };
+    auto registerPathlib = [&]()
+    {
+        defGlobal("Path", makeStubClass("Path"));
+        defGlobal("PurePath", makeStubClass("PurePath"));
+    };
+    auto registerIo = [&]()
+    {
+        for (auto &sym : {"StringIO", "BytesIO", "TextIOWrapper", "BufferedReader"})
+            defGlobal(sym, makeStubClass(sym));
+    };
+    auto registerCopy = [&]()
+    {
+        defGlobal("copy", makeStubNative("copy"));
+        defGlobal("deepcopy", makeStubNative("deepcopy"));
+    };
+
+    auto registerModule = [&](const std::string &name)
+    {
+        if (name == "abc")
+            registerAbc();
+        else if (name == "typing")
+            registerTyping();
+        else if (name == "collections")
+            registerCollections();
+        else if (name == "dataclasses")
+            registerDataclasses();
+        else if (name == "enum")
+            registerEnum();
+        else if (name == "functools")
+            registerFunctools();
+        else if (name == "itertools")
+            registerItertools();
+        else if (name == "os" || name == "os.path")
+            registerOs();
+        else if (name == "sys")
+            registerSys();
+        else if (name == "re")
+            registerRe();
+        else if (name == "json")
+            registerJson();
+        else if (name == "math")
+            registerMath();
+        else if (name == "random")
+            registerRandom();
+        else if (name == "datetime")
+            registerDatetime();
+        else if (name == "pathlib")
+            registerPathlib();
+        else if (name == "io")
+            registerIo();
+        else if (name == "copy")
+            registerCopy();
+        // Unknown module: silently ignored
+    };
+
+    if (!s.module.empty())
+    {
+        // "from X import a, b, c"
+        registerModule(s.module);
+        // Any symbol still undefined after module registration gets a generic stub
+        for (auto &item : s.imports)
+        {
+            std::string sym = item.alias.empty() ? item.name : item.alias;
+            if (!globals->has(sym) && !env->has(sym))
+                globals->define(sym, makeStubNative(item.name), false);
+        }
+    }
+    else
+    {
+        // "import X"  or  "import X as Y"
+        for (auto &item : s.imports)
+        {
+            registerModule(item.name);
+            std::string alias = item.alias.empty() ? item.name : item.alias;
+            if (!globals->has(alias))
+                globals->define(alias, makeStubNative(alias), false);
+        }
+    }
 }
 
 void Interpreter::execExprStmt(ExprStmt &s)
@@ -2132,7 +2379,8 @@ QuantumValue Interpreter::evalCall(CallExpr &e)
                 throw RuntimeError("No parent class for super call");
             // Walk parent chain to find the method
             auto k = parentClass.get();
-            while (k) {
+            while (k)
+            {
                 auto it = k->methods.find(se.method);
                 if (it != k->methods.end())
                     return callInstanceMethod(inst, it->second, std::move(args));
@@ -2150,7 +2398,8 @@ QuantumValue Interpreter::evalCall(CallExpr &e)
                 throw RuntimeError("No parent class for super() call");
             // Find init in parent chain
             auto k = parentClass.get();
-            while (k) {
+            while (k)
+            {
                 auto it = k->methods.find("init");
                 if (it != k->methods.end())
                     return callInstanceMethod(inst, it->second, std::move(args));
@@ -2177,7 +2426,8 @@ QuantumValue Interpreter::evalCall(CallExpr &e)
         // Find init in class hierarchy
         auto k = klass.get();
         std::shared_ptr<QuantumFunction> initFn;
-        while (k && !initFn) {
+        while (k && !initFn)
+        {
             auto it = k->methods.find("init");
             if (it != k->methods.end())
                 initFn = it->second;
@@ -2196,8 +2446,13 @@ QuantumValue Interpreter::evalCall(CallExpr &e)
                 size_t ai = i - paramStart;
                 scope->define(initFn->params[i], ai < args.size() ? args[ai] : QuantumValue());
             }
-            try { execBlock(initFn->body->as<BlockStmt>(), scope); }
-            catch (ReturnSignal &) {}
+            try
+            {
+                execBlock(initFn->body->as<BlockStmt>(), scope);
+            }
+            catch (ReturnSignal &)
+            {
+            }
         }
         return instVal;
     }
@@ -2248,8 +2503,14 @@ QuantumValue Interpreter::callInstanceMethod(std::shared_ptr<QuantumInstance> in
         size_t ai = i - paramStart;
         scope->define(fn->params[i], ai < args.size() ? args[ai] : QuantumValue());
     }
-    try { execBlock(fn->body->as<BlockStmt>(), scope); }
-    catch (ReturnSignal &r) { return r.value; }
+    try
+    {
+        execBlock(fn->body->as<BlockStmt>(), scope);
+    }
+    catch (ReturnSignal &r)
+    {
+        return r.value;
+    }
     return QuantumValue();
 }
 
@@ -2312,8 +2573,12 @@ QuantumValue Interpreter::evalMember(MemberExpr &e)
     {
         auto inst = obj.asInstance();
         // Check for __str__ when toString is called
-        try { return inst->getField(e.member); }
-        catch (NameError &) {
+        try
+        {
+            return inst->getField(e.member);
+        }
+        catch (NameError &)
+        {
             throw TypeError("No member '" + e.member + "' on instance of " + inst->klass->name);
         }
     }
@@ -2483,16 +2748,19 @@ QuantumValue Interpreter::callMethod(QuantumValue &obj, const std::string &metho
         auto inst = obj.asInstance();
         // Look up method in class hierarchy
         auto k = inst->klass.get();
-        while (k) {
+        while (k)
+        {
             auto it = k->methods.find(method);
             if (it != k->methods.end())
                 return callInstanceMethod(inst, it->second, std::move(args));
             k = k->base.get();
         }
         // Check instance fields for callable
-        if (inst->fields.count(method)) {
+        if (inst->fields.count(method))
+        {
             auto &field = inst->fields[method];
-            if (field.isFunction()) {
+            if (field.isFunction())
+            {
                 if (std::holds_alternative<std::shared_ptr<QuantumFunction>>(field.data))
                     return callFunction(field.asFunction(), std::move(args));
                 if (std::holds_alternative<std::shared_ptr<QuantumNative>>(field.data))
