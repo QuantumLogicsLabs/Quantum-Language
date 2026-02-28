@@ -1,0 +1,38 @@
+# Quantum (original)
+fn add(a, b) { return a + b }
+
+# Python style
+def greet(name):
+    return "Hello " + name
+
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+# JavaScript style
+function multiply(a, b) {
+    return a * b
+}
+
+# JS anonymous assigned to variable
+square = function(n) { return n * n }
+
+# Arrow function — expression body (implicit return)
+double = (x) => x * 2
+add = (a, b) => a + b
+
+# Arrow function — block body
+clamp = (x, min, max) => {
+    if x < min: return min
+    if x > max: return max
+    return x
+}
+
+# Single-param arrow, no parens
+triple = x => x * 3
+
+# All are callable identically
+print(greet("World"))
+print(double(5))
+print(triple(4))

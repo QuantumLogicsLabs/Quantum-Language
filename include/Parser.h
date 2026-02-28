@@ -71,6 +71,7 @@ private:
     ASTNodePtr parseArrayLiteral();
     ASTNodePtr parseDictLiteral();
     ASTNodePtr parseLambda();
+    ASTNodePtr parseArrowFunction(std::vector<std::string> params, int ln);
     std::vector<ASTNodePtr> parseArgList();
     std::vector<std::string> parseParamList();
 };

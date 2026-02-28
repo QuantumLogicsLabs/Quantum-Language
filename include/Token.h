@@ -15,6 +15,8 @@ enum class TokenType
     LET,
     CONST,
     FN,
+    DEF,      // Python: def
+    FUNCTION, // JavaScript: function
     RETURN,
     IF,
     ELSE,
@@ -29,7 +31,6 @@ enum class TokenType
     COUT, // cout
     CIN,  // cin
     IMPORT,
-
     // C/C++ style type keywords
     TYPE_INT,
     TYPE_FLOAT,
@@ -70,6 +71,7 @@ enum class TokenType
     MINUS_ASSIGN,
     STAR_ASSIGN,
     SLASH_ASSIGN,
+    FAT_ARROW, // =>
     PLUS_PLUS,
     MINUS_MINUS,
     BIT_AND,

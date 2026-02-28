@@ -8,6 +8,8 @@ const std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"let", TokenType::LET},
     {"const", TokenType::CONST},
     {"fn", TokenType::FN},
+    {"def", TokenType::DEF},
+    {"function", TokenType::FUNCTION},
     {"return", TokenType::RETURN},
     {"if", TokenType::IF},
     {"else", TokenType::ELSE},
@@ -291,6 +293,11 @@ std::vector<Token> Lexer::tokenize()
             {
                 advance();
                 rawTokens.emplace_back(TokenType::EQ, "==", startLine, startCol);
+            }
+            else if (current() == '>')
+            {
+                advance();
+                rawTokens.emplace_back(TokenType::FAT_ARROW, "=>", startLine, startCol);
             }
             else
                 rawTokens.emplace_back(TokenType::ASSIGN, "=", startLine, startCol);

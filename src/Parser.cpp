@@ -67,9 +67,21 @@ ASTNodePtr Parser::parseStatement()
         return parseVarDecl(true);
     }
     case TokenType::FN:
+    case TokenType::DEF:
+    case TokenType::FUNCTION:
     {
         consume();
-        return parseFunctionDecl();
+        // "function name(...)" → named declaration
+        // "function(...)"      → anonymous, treat as expr statement (lambda)
+        if (current().type == TokenType::IDENTIFIER)
+            return parseFunctionDecl();
+        // anonymous function used as statement — rare but valid
+        // fall through to expr parsing via parseExprStmt would double-consume;
+        // instead parse it as an expression statement manually
+        auto lam = parseLambda();
+        while (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON))
+            consume();
+        return std::make_unique<ASTNode>(ExprStmt{std::move(lam)}, lam->line);
     }
     case TokenType::IF:
     {
@@ -144,11 +156,22 @@ ASTNodePtr Parser::parseStatement()
     case TokenType::TYPE_SHORT:
     case TokenType::TYPE_UNSIGNED:
     {
-        auto typeHint = consume().value; // consume the type keyword
-        // Handle "unsigned int", "long long", "long double" etc. — eat extra qualifiers
-        while (isCTypeKeyword(current().type))
-            typeHint += " " + consume().value;
-        return parseCTypeVarDecl(typeHint);
+        // Only treat as a C-type declaration if followed by an identifier.
+        // e.g.  "int x = 5"  → declaration
+        //       "string = x" → plain assignment (string used as variable name)
+        // Peek past any chained type qualifiers to find the next real token.
+        size_t lookahead = pos + 1;
+        while (lookahead < tokens.size() && isCTypeKeyword(tokens[lookahead].type))
+            ++lookahead;
+        if (lookahead < tokens.size() && tokens[lookahead].type == TokenType::IDENTIFIER)
+        {
+            auto typeHint = consume().value;
+            while (isCTypeKeyword(current().type))
+                typeHint += " " + consume().value;
+            return parseCTypeVarDecl(typeHint);
+        }
+        // Not a declaration — fall through to expression statement
+        return parseExprStmt();
     }
     default:
         return parseExprStmt();
@@ -221,6 +244,18 @@ ASTNodePtr Parser::parseFunctionDecl()
     int ln = current().line;
     auto nameToken = expect(TokenType::IDENTIFIER, "Expected function name");
     auto params = parseParamList();
+
+    // Skip optional return type annotation: -> type  or  -> SomeType
+    if (check(TokenType::ARROW))
+    {
+        consume(); // eat ->
+        // consume tokens until we hit : or { or NEWLINE or INDENT
+        while (!atEnd() && !check(TokenType::COLON) && !check(TokenType::LBRACE) && !check(TokenType::NEWLINE) && !check(TokenType::INDENT))
+            consume();
+    }
+
+    match(TokenType::COLON); // optional Python-style colon
+    skipNewlines();
     auto body = parseBlock();
     return std::make_unique<ASTNode>(FunctionDecl{nameToken.value, std::move(params), std::move(body)}, ln);
 }
@@ -735,19 +770,12 @@ ASTNodePtr Parser::parsePrimary()
         return std::make_unique<ASTNode>(NilLiteral{}, ln);
     }
 
-    if (tok.type == TokenType::IDENTIFIER)
-    {
-        auto name = tok.value;
-        consume();
-        return std::make_unique<ASTNode>(Identifier{name}, ln);
-    }
-
     if (tok.type == TokenType::LBRACKET)
         return parseArrayLiteral();
     if (tok.type == TokenType::LBRACE)
         return parseDictLiteral();
 
-    if (tok.type == TokenType::FN)
+    if (tok.type == TokenType::FN || tok.type == TokenType::FUNCTION || tok.type == TokenType::DEF)
     {
         consume();
         return parseLambda();
@@ -755,12 +783,109 @@ ASTNodePtr Parser::parsePrimary()
 
     if (tok.type == TokenType::LPAREN)
     {
+        int ln = tok.line;
         consume();
         skipNewlines();
+
+        // Check for arrow function: () => or (x, y) =>
+        // We need to speculatively collect identifiers separated by commas
+        // If we see RPAREN then ARROW it's an arrow function param list
+        std::vector<std::string> arrowParams;
+        bool isArrow = false;
+        size_t savedPos = pos;
+
+        // Try to parse as param list: only identifiers and commas allowed
+        bool valid = true;
+        std::vector<std::string> tryParams;
+        size_t tryPos = pos; // pos is after '('
+        // peek without consuming
+        {
+            size_t p = pos;
+            // empty params: ()
+            while (p < tokens.size() && tokens[p].type == TokenType::NEWLINE)
+                ++p;
+            if (tokens[p].type == TokenType::RPAREN)
+            {
+                // () — could be arrow
+                size_t after = p + 1;
+                while (after < tokens.size() && tokens[after].type == TokenType::NEWLINE)
+                    ++after;
+                if (tokens[after].type == TokenType::FAT_ARROW)
+                    isArrow = true;
+            }
+            else
+            {
+                // Try collecting identifiers
+                while (p < tokens.size() && tokens[p].type == TokenType::IDENTIFIER)
+                {
+                    tryParams.push_back(tokens[p].value);
+                    ++p;
+                    while (p < tokens.size() && tokens[p].type == TokenType::NEWLINE)
+                        ++p;
+                    if (tokens[p].type == TokenType::COMMA)
+                    {
+                        ++p;
+                        continue;
+                    }
+                    if (tokens[p].type == TokenType::RPAREN)
+                    {
+                        size_t after = p + 1;
+                        while (after < tokens.size() && tokens[after].type == TokenType::NEWLINE)
+                            ++after;
+                        if (tokens[after].type == TokenType::FAT_ARROW)
+                            isArrow = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (isArrow)
+        {
+            // Consume the params and closing paren
+            while (!check(TokenType::RPAREN) && !atEnd())
+            {
+                if (isCTypeKeyword(current().type))
+                    consume(); // skip type hints
+                if (check(TokenType::IDENTIFIER))
+                    arrowParams.push_back(consume().value);
+                match(TokenType::COMMA);
+            }
+            expect(TokenType::RPAREN, "Expected ')'");
+            return parseArrowFunction(std::move(arrowParams), ln);
+        }
+
+        // Normal parenthesised expression
         auto expr = parseExpr();
         skipNewlines();
         expect(TokenType::RPAREN, "Expected ')'");
         return expr;
+    }
+
+    // Single-param arrow without parens: x => expr
+    if (tok.type == TokenType::IDENTIFIER)
+    {
+        // peek ahead for =>
+        size_t j = pos + 1;
+        while (j < tokens.size() && tokens[j].type == TokenType::NEWLINE)
+            ++j;
+        if (j < tokens.size() && tokens[j].type == TokenType::FAT_ARROW)
+        {
+            std::string paramName = tok.value;
+            consume(); // eat identifier
+            return parseArrowFunction({paramName}, tok.line);
+        }
+        auto name = tok.value;
+        consume();
+        return std::make_unique<ASTNode>(Identifier{name}, ln);
+    }
+
+    // C-type keywords used as variable names (e.g. "string = 'hello'", "double = 3.14")
+    if (isCTypeKeyword(tok.type))
+    {
+        auto name = tok.value;
+        consume();
+        return std::make_unique<ASTNode>(Identifier{name}, ln);
     }
 
     throw ParseError("Unexpected token: '" + tok.value + "'", tok.line, tok.col);
@@ -807,9 +932,38 @@ ASTNodePtr Parser::parseDictLiteral()
 
 ASTNodePtr Parser::parseLambda()
 {
+    // Called after consuming fn / function / def keyword (anonymous form)
     int ln = current().line;
     auto params = parseParamList();
+    match(TokenType::COLON); // Python: def style
+    if (!match(TokenType::FAT_ARROW))
+        match(TokenType::ARROW); // JS => or Quantum ->
+    skipNewlines();
     auto body = parseBlock();
+    return std::make_unique<ASTNode>(LambdaExpr{std::move(params), std::move(body)}, ln);
+}
+
+// Arrow function: already consumed '(' params ')' as an expression,
+// then caller detects '=>' and calls this.
+ASTNodePtr Parser::parseArrowFunction(std::vector<std::string> params, int ln)
+{
+    // consume => (FAT_ARROW) or -> (ARROW)
+    if (!match(TokenType::FAT_ARROW) && !match(TokenType::ARROW))
+        throw ParseError("Expected '=>' or '->'", current().line, current().col);
+    skipNewlines();
+    // Body can be a block OR a single expression (implicit return)
+    if (check(TokenType::LBRACE) || check(TokenType::INDENT))
+    {
+        auto body = parseBlock();
+        return std::make_unique<ASTNode>(LambdaExpr{std::move(params), std::move(body)}, ln);
+    }
+    // Expression body: (x) => x * 2  →  wrap in implicit return block
+    auto expr = parseExpr();
+    int eln = expr->line;
+    auto retStmt = std::make_unique<ASTNode>(ReturnStmt{std::move(expr)}, eln);
+    BlockStmt block;
+    block.statements.push_back(std::move(retStmt));
+    auto body = std::make_unique<ASTNode>(std::move(block), ln);
     return std::make_unique<ASTNode>(LambdaExpr{std::move(params), std::move(body)}, ln);
 }
 
@@ -836,14 +990,47 @@ std::vector<std::string> Parser::parseParamList()
     std::vector<std::string> params;
     while (!check(TokenType::RPAREN) && !atEnd())
     {
-        // Allow typed params like "int x" — skip the type if present
+        // C-style: "int x" — type keyword before name
         if (isCTypeKeyword(current().type))
         {
-            consume(); // eat type keyword
+            consume();
             while (isCTypeKeyword(current().type))
                 consume(); // multi-word types
         }
+
         params.push_back(expect(TokenType::IDENTIFIER, "Expected parameter name").value);
+
+        // Python-style annotation: "x: int" or "x: str" — skip ": type"
+        if (check(TokenType::COLON))
+        {
+            consume(); // eat :
+            // consume the type — could be identifier or type keyword
+            if (check(TokenType::IDENTIFIER) || isCTypeKeyword(current().type))
+                consume();
+        }
+
+        // Default value: "x = 5" or "x: int = 5" — skip "= expr"
+        if (check(TokenType::ASSIGN))
+        {
+            consume(); // eat =
+            // consume tokens until comma or closing paren
+            int depth = 0;
+            while (!atEnd())
+            {
+                if (check(TokenType::LPAREN) || check(TokenType::LBRACKET))
+                    depth++;
+                else if (check(TokenType::RPAREN) || check(TokenType::RBRACKET))
+                {
+                    if (depth == 0)
+                        break;
+                    depth--;
+                }
+                else if (check(TokenType::COMMA) && depth == 0)
+                    break;
+                consume();
+            }
+        }
+
         if (!match(TokenType::COMMA))
             break;
     }
