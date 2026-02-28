@@ -1,7 +1,4 @@
-# ⚡ Quantum Language
-
-**Quantum** is a dynamically-typed, cybersecurity-ready scripting language written in C++17.  
-Files use the `.sa` extension and run with the single command: `quantum file.sa`
+<div align="center">
 
 ```
   ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗████████╗██╗   ██╗███╗   ███╗
@@ -12,263 +9,515 @@ Files use the `.sa` extension and run with the single command: `quantum file.sa`
   ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚═╝     ╚═╝
 ```
 
----
+**The Multi-Paradigm Scripting Language Built for Cybersecurity**
 
-## 🚀 Quick Start
+![Version](https://img.shields.io/badge/version-1.0.0-cyan)
+![Language](https://img.shields.io/badge/built%20with-C%2B%2B17-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-### Build
-```bash
-make              # compile
-sudo make install # install to /usr/local/bin
-```
-
-### Run
-```bash
-quantum hello.sa         # run a script
-quantum                  # start REPL
-quantum --help           # show help
-```
+</div>
 
 ---
 
-## 📖 Language Reference
+## What is Quantum?
+
+**Quantum** is a dynamically-typed, tree-walk interpreted scripting language built from scratch in C++17. It is designed to feel familiar to developers from any background — you can write it like Python, JavaScript, or C/C++ and it will just work. Quantum files use the `.sa` extension.
+
+Quantum is built with cybersecurity tooling in mind, with reserved keywords and built-in functions for encoding, XOR operations, hex manipulation, and more planned features around scanning, payloads, and cryptography.
+
+---
+
+## Features
+
+- **Multi-syntax support** — Python, JavaScript, and C/C++ syntax all work in the same file
+- **Dynamic typing** — no type declarations required; variables infer their type at runtime
+- **Tree-walk interpreter** — clean and hackable execution engine written in C++17
+- **REPL mode** — interactive shell for quick experimentation
+- **Rich standard library** — math, string, array, dict, I/O, time, randomness, encoding
+- **Cybersecurity builtins** — `xor_bytes`, `base64_encode`, `to_hex`, `from_hex`, `rot13`
+- **First-class functions** — closures, lambdas, arrow functions, anonymous functions
+- **Classes and instances** — OOP with inheritance
+- **Bitwise operations** — full support for `&`, `|`, `^`, `~`, `<<`, `>>`
+
+---
+
+## Installation
+
+### Prerequisites
+
+- C++17 compatible compiler (MSVC, GCC, Clang)
+- CMake 3.15+
+
+### Build from Source
+
+```bash
+git clone https://github.com/yourusername/quantum-lang.git
+cd quantum-lang
+mkdir build && cd build
+cmake ..
+cmake --build . --config Release
+```
+
+The compiled binary will be at `build/Release/quantum.exe` (Windows) or `build/quantum` (Linux/macOS).
+
+### Add to PATH (Windows)
+
+```powershell
+$env:PATH += ";C:\path\to\quantum\build\Release"
+```
+
+---
+
+## Usage
+
+```bash
+# Run a script
+quantum script.sa
+
+# Start interactive REPL
+quantum
+
+# Check syntax without running
+quantum --check script.sa
+
+# Show version
+quantum --version
+
+# Show help
+quantum --help
+```
+
+---
+
+## Language Guide
 
 ### Variables
-No type declarations — works like Python:
-```quantum
+
+Quantum supports four declaration styles — use whichever feels natural:
+
+```python
+# Python-style (no keyword needed)
+name = "Alice"
+score = 100
+active = true
+
+# Quantum-style
 let x = 42
-let name = "Alice"
-let active = true
-let nothing = nil
-const MAX = 100      # immutable constant
+const MAX = 1000
+
+# C-style (with type coercion)
+int count = 0
+float pi = 3.14
+double big = 1e15
+char initial = "A"
+string message = "hello"
+bool flag = false
 ```
 
 ### Functions
-JS-style declaration syntax:
-```quantum
-fn greet(name) {
+
+All five function styles are supported:
+
+```python
+# Quantum style
+fn add(a, b) {
+    return a + b
+}
+
+# Python style
+def greet(name):
     return "Hello, " + name + "!"
+
+def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)
+
+# JavaScript style
+function multiply(a, b) {
+    return a * b
 }
 
-# Lambda / anonymous function
-let square = fn(n) { return n * n }
+# Arrow function — expression body (implicit return)
+double = (x) => x * 2
+add    = (a, b) => a + b
+triple = x => x * 3
 
-# Closures
-fn make_adder(n) {
-    return fn(x) { return x + n }
+# Arrow function — block body
+clamp = (x, min, max) => {
+    if x < min: return min
+    if x > max: return max
+    return x
 }
-let add5 = make_adder(5)
-print(add5(10))  # 15
+
+# Anonymous function assigned to variable
+square = fn(n) { return n * n }
+square = function(n) { return n * n }
 ```
 
 ### Control Flow
-```quantum
-if x > 10 {
-    print("big")
-} elif x > 0 {
-    print("small")
+
+```python
+# Python style (colon + indentation)
+if score > 90:
+    print("A grade")
+elif score > 75:
+    print("B grade")
+else:
+    print("Try harder")
+
+# Brace style
+if score > 90 {
+    print("A grade")
+} else if score > 75 {
+    print("B grade")
 } else {
-    print("negative")
+    print("Try harder")
 }
 
-while count < 10 {
-    count += 1
-}
+# Single-line (no braces)
+if x > 0 print("positive")
+```
 
-for item in [1, 2, 3] {
+### Loops
+
+```python
+# While loop
+i = 0
+while i < 10:
+    print(i)
+    i++
+
+# For-in loop
+for item in ["a", "b", "c"]:
     print(item)
-}
 
-for i in range(10) {
-    if i == 5 { break }
-}
+# Range-based
+for n in range(1, 6):
+    print(n * n)
+
+# C-style post/pre increment
+count = 0
+count++
+++count
+count--
+```
+
+### Output & Input
+
+Quantum supports three I/O styles interchangeably:
+
+```python
+# Python / Quantum style
+print("Hello, World!")
+print("x =", x, "| y =", y)
+
+# C-style printf / scanf
+printf("Score: %d out of %d\n", score, total)
+scanf("%d", &value)
+
+# C++ style cout / cin
+cout << "Enter your name: "
+cin >> name
+cout << "Hello, " << name << endl
+cout << "Value: " << x + y << "\n"
 ```
 
 ### Arrays
-```quantum
-let arr = [1, 2, 3, 4, 5]
-arr.push(6)
-arr.pop()
-arr.slice(1, 3)
-arr.map(fn(x) { return x * 2 })
-arr.filter(fn(x) { return x > 2 })
-arr.sort()
-arr.reverse()
-arr.join(", ")
-arr.contains(3)
+
+```python
+nums = [10, 20, 30, 40, 50]
+
+nums.push(60)            # append
+nums.pop()               # remove last
+nums.slice(1, 4)         # [20, 30, 40]
+len(nums)                # 5
+
+doubled = nums.map(fn(n) { return n * 2 })
+evens   = nums.filter(fn(n) { return n % 2 == 0 })
+total   = nums.reduce(fn(acc, n) { return acc + n }, 0)
+nums.sort()
+nums.reverse()
+nums.includes(30)        # true
+nums.index_of(30)        # 2
 ```
 
 ### Dictionaries
-```quantum
-let user = {"name": "Alice", "role": "admin"}
-user["key"] = "value"
-user.get("key", "default")
-user.has("name")
-user.keys()
-user.values()
-user.delete("key")
+
+```python
+user = {
+    "name":  "Alice",
+    "role":  "pentester",
+    "level": 99
+}
+
+print(user["name"])           # Alice
+user["tools"] = ["nmap", "burp"]
+print(user.get("tools"))
+print(user.keys())
+print(user.values())
+user.remove("level")
 ```
 
-### String Methods
-```quantum
-"hello".upper()          # HELLO
-"HELLO".lower()          # hello
-"  hi  ".trim()          # hi
-"a,b,c".split(",")       # ["a","b","c"]
-"hello world".replace("world", "quantum")
-"hello".contains("ell")  # true
-"hello".starts_with("he")
-"hello".ends_with("lo")
-"hello".slice(1, 3)      # el
-"ha".repeat(3)           # hahaha
-"hello".chars()          # ["h","e","l","l","o"]
+### Strings
+
+```python
+msg = "  Hello Quantum World  "
+
+msg.trim()                    # "Hello Quantum World"
+msg.upper()                   # "  HELLO QUANTUM WORLD  "
+msg.lower()
+msg.split(" ")                # array of words
+msg.replace("World", "Earth")
+msg.contains("Quantum")       # true
+msg.starts_with("  Hello")    # true
+msg.ends_with("World  ")      # true
+len(msg)                      # 23
 ```
 
-### Operators
-```quantum
-# Arithmetic
-+ - * / % **          # power: 2 ** 10 = 1024
+### Closures
 
-# Comparison
-== != < > <= >=
+```python
+fn make_counter(start):
+    count = start
+    return fn():
+        count += 1
+        return count
 
-# Logical
-and  or  not
-
-# Bitwise (key for cybersecurity)
-& | ^ ~ << >>
-
-# Assignment
-= += -= *= /=
+counter = make_counter(0)
+print(counter())   # 1
+print(counter())   # 2
+print(counter())   # 3
 ```
 
-### Built-in Functions
-```quantum
-# Type conversion
-num("3.14")    str(42)    bool(0)    type(x)
+### Classes
 
-# Math
-abs(x)   sqrt(x)   floor(x)   ceil(x)   round(x)
-pow(x,y) log(x)    sin(x)     cos(x)    tan(x)
-min(a,b) max(a,b)
+```python
+class Animal:
+    fn init(name, sound):
+        self.name = name
+        self.sound = sound
 
-# String/Bytes
-chr(65)       # "A"
-ord("A")      # 65
-hex(255)      # "0xFF"
-bin(8)        # "0b1000"
+    fn speak():
+        return self.name + " says " + self.sound
 
-# Collections
-len(x)
-range(start, stop, step)
-array(size, fill)
-keys(dict)
-values(dict)
+class Dog extends Animal:
+    fn fetch(item):
+        return self.name + " fetches the " + item
 
-# Random
-rand()           # 0.0 to 1.0
-rand(lo, hi)     # float in range
-rand_int(lo, hi)
-
-# Cybersecurity
-xor_bytes(data, key)    # XOR two strings
-to_hex(s)               # string to hex
-from_hex(h)             # hex to string
-rot13(s)                # ROT13 cipher
-base64_encode(s)        # base64 encoding
-
-# Utility
-time()           # unix timestamp (ms)
-exit(code)       # exit program
-assert(cond, msg)
+dog = Dog("Rex", "Woof")
+print(dog.speak())
+print(dog.fetch("ball"))
 ```
 
-### Constants
-```quantum
-PI    # 3.14159...
-E     # 2.71828...
-INF   # infinity
+### Bitwise Operations
+
+Essential for cybersecurity and low-level work:
+
+```python
+a = 0xFF
+b = 0x0F
+
+print(a & b)        # AND  → 15
+print(a | b)        # OR   → 255
+print(a ^ b)        # XOR  → 240
+print(~a)           # NOT  → -256
+print(1 << 8)       # SHL  → 256
+print(256 >> 4)     # SHR  → 16
+print(hex(a & b))   # 0xF
 ```
 
 ---
 
-## 🔐 Cybersecurity Features
+## Standard Library
 
-Quantum is designed to grow into a full cybersecurity language. Current built-ins:
-
+### Math
 | Function | Description |
 |----------|-------------|
-| `xor_bytes(a, b)` | XOR two byte strings |
-| `to_hex(s)` | Convert string to hex |
-| `from_hex(h)` | Decode hex string |
-| `rot13(s)` | ROT13 cipher |
-| `base64_encode(s)` | Base64 encode |
+| `abs(x)` | Absolute value |
+| `sqrt(x)` | Square root |
+| `pow(x, y)` | x to the power y |
+| `floor(x)` | Round down |
+| `ceil(x)` | Round up |
+| `round(x)` | Round to nearest |
+| `log(x)` | Natural logarithm |
+| `log2(x)` | Base-2 logarithm |
+| `sin(x)` / `cos(x)` / `tan(x)` | Trig functions |
+| `min(...)` / `max(...)` | Min/max of values |
+| `PI` / `E` / `INF` | Constants |
+
+### Type Conversion
+| Function | Description |
+|----------|-------------|
+| `num(x)` | Convert to number |
+| `str(x)` | Convert to string |
+| `bool(x)` | Convert to boolean |
+| `type(x)` | Get type name |
+| `chr(n)` | Number to character |
+| `ord(c)` | Character to number |
+
+### Encoding & Cybersecurity
+| Function | Description |
+|----------|-------------|
 | `hex(n)` | Number to hex string |
 | `bin(n)` | Number to binary string |
-| `ord(c)` / `chr(n)` | Char/byte conversions |
-| Bitwise ops `& \| ^ ~ << >>` | Bit manipulation |
+| `to_hex(s)` | String bytes to hex |
+| `from_hex(s)` | Hex string to bytes |
+| `xor_bytes(a, b)` | XOR two byte strings |
+| `base64_encode(s)` | Base64 encode |
+| `rot13(s)` | ROT13 cipher |
 
-**Reserved keywords for future modules:**
-- `scan` — network scanning
-- `payload` — payload crafting
-- `encrypt` / `decrypt` — symmetric crypto
-- `hash` — cryptographic hashing
+### Utility
+| Function | Description |
+|----------|-------------|
+| `len(x)` | Length of string/array/dict |
+| `range(n)` / `range(a, b)` | Generate number range |
+| `rand()` / `rand(a, b)` | Random float |
+| `rand_int(a, b)` | Random integer |
+| `time()` | Unix timestamp (seconds) |
+| `sleep(s)` | Sleep for s seconds |
+| `assert(cond, msg)` | Assert condition |
+| `exit(code)` | Exit program |
+| `format(fmt, ...)` | Format string (sprintf-style) |
+| `keys(dict)` / `values(dict)` | Dict keys/values |
 
 ---
 
-## 🏗️ Architecture
+## Format Strings
+
+Quantum supports C-style `printf` format strings:
 
 ```
-quantum/
-├── include/
-│   ├── Token.h          # Token types and structure
-│   ├── Lexer.h          # Tokenizer
-│   ├── AST.h            # AST node variants (C++17 std::variant)
-│   ├── Parser.h         # Recursive descent parser
-│   ├── Value.h          # Runtime value type + Environment
-│   ├── Interpreter.h    # Tree-walk interpreter
-│   └── Error.h          # Error hierarchy
+%d  %i   → integer
+%f  %e   → float
+%s       → string
+%c       → character
+%x  %X   → hex (lower/upper)
+%o       → octal
+%b       → binary
+%%       → literal %
+```
+
+Width, precision, and flags are supported:
+
+```python
+printf("%-10s %6.2f\n", "Price:", 3.14159)
+printf("%08X\n", 255)
+s = format("Hello, %s! You scored %d%%", name, score)
+```
+
+---
+
+## Reserved Cybersecurity Keywords
+
+The following keywords are reserved for upcoming cybersecurity features:
+
+| Keyword | Planned Purpose |
+|---------|----------------|
+| `scan` | Network scanning |
+| `payload` | Exploit payload construction |
+| `encrypt` | Cryptographic encryption |
+| `decrypt` | Cryptographic decryption |
+| `hash` | Hashing algorithms (MD5, SHA) |
+
+---
+
+## CLI Reference
+
+```
+quantum <file.sa>          Run a Quantum script
+quantum                    Start interactive REPL
+quantum --check <file.sa>  Check syntax only (no execution)
+quantum --version          Show version information
+quantum --help             Show usage help
+quantum --aura             Show project achievement board
+```
+
+---
+
+## Project Structure
+
+```
+quantum-lang/
 ├── src/
-│   ├── main.cpp         # CLI entry point + REPL
-│   ├── Token.cpp
-│   ├── Lexer.cpp
-│   ├── Parser.cpp
-│   ├── Value.cpp
-│   └── Interpreter.cpp
+│   ├── main.cpp          # Entry point, REPL, file runner
+│   ├── Lexer.cpp         # Tokenizer with INDENT/DEDENT support
+│   ├── Parser.cpp        # Recursive descent parser
+│   ├── Interpreter.cpp   # Tree-walk interpreter + native functions
+│   ├── Value.cpp         # Value types and Environment
+│   └── Token.cpp         # Token utilities
+├── include/
+│   ├── AST.h             # AST node variant definitions
+│   ├── Error.h           # Error types + ANSI color codes
+│   ├── Interpreter.h
+│   ├── Lexer.h
+│   ├── Parser.h
+│   ├── Token.h
+│   └── Value.h
 ├── examples/
-│   ├── hello.sa         # Hello World
-│   ├── features.sa      # Full language showcase
-│   ├── cybersec.sa      # Cybersecurity tools
-│   └── advanced.sa      # Advanced patterns
-├── Makefile
-├── CMakeLists.txt
-└── install.sh
+│   ├── Python/           # Python-syntax examples
+│   ├── C/                # C-syntax examples
+│   └── C++/              # C++-syntax examples
+└── CMakeLists.txt
 ```
 
-### Design Principles
-- **OOP architecture** — Every major component is a class
-- **C++17 `std::variant`** — Type-safe AST without inheritance overhead
-- **Closures** — Full lexical scoping via shared `Environment` pointers
-- **Scalable** — Add new token types, AST nodes, and built-ins without breaking existing code
-- **Error hierarchy** — Typed exceptions for clean error reporting
+---
+
+## Example Programs
+
+### Fibonacci (Python style)
+```python
+def fib(n):
+    if n <= 1:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+for i in range(10):
+    print(fib(i))
+```
+
+### XOR Encryption (Cybersecurity)
+```python
+fn xor_encrypt(text, key):
+    return xor_bytes(text, key)
+
+message   = "Hello, Quantum!"
+key       = "secret"
+encrypted = xor_encrypt(message, key)
+decrypted = xor_encrypt(encrypted, key)
+
+print("Encrypted:", to_hex(encrypted))
+print("Decrypted:", decrypted)
+```
+
+### FizzBuzz (C style)
+```c
+int i = 1
+while(i <= 30) {
+    if(i % 15 == 0)      printf("FizzBuzz\n")
+    else if(i % 3 == 0)  printf("Fizz\n")
+    else if(i % 5 == 0)  printf("Buzz\n")
+    else                 printf("%d\n", i)
+    i++
+}
+```
+
+### Higher-Order Functions (JavaScript style)
+```javascript
+const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+const evens   = numbers.filter(x => x % 2 == 0)
+const squares = evens.map(x => x * x)
+const total   = squares.reduce((acc, x) => acc + x, 0)
+
+console.log("Sum of squares of evens:", total)
+```
 
 ---
 
-## 🔮 Roadmap
+## Built By
 
-- [ ] Module/import system (`import net`, `import crypto`)
-- [ ] Class system with inheritance
-- [ ] Try/catch exception handling
-- [ ] Socket API for network scanning
-- [ ] AES/RSA encryption built-ins
-- [ ] SHA-256/MD5 hashing
-- [ ] Regex support
-- [ ] File I/O (`file.read()`, `file.write()`)
-- [ ] Standard library modules
-- [ ] Bytecode compiler + VM (performance upgrade)
-- [ ] REPL tab-completion
+**Muhammad Saad Amin**
 
----
-
-## 📄 License
-MIT License — built for learning, hacking, and growing.
+Quantum Language v1.0.0 — A cybersecurity-ready scripting language built from scratch in C++17.
