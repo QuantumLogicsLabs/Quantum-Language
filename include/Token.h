@@ -26,6 +26,8 @@ enum class TokenType
     CONTINUE,
     PRINT,
     INPUT,
+    COUT, // cout
+    CIN,  // cin
     IMPORT,
     // C/C++ style type keywords
     TYPE_INT,

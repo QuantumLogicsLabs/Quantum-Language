@@ -45,6 +45,8 @@ private:
     ASTNodePtr parseReturnStmt();
     ASTNodePtr parsePrintStmt();
     ASTNodePtr parseInputStmt();
+    ASTNodePtr parseCoutStmt(); // cout << x << y << endl
+    ASTNodePtr parseCinStmt();  // cin >> x >> y
     ASTNodePtr parseImportStmt();
     ASTNodePtr parseExprStmt();
     ASTNodePtr parseCTypeVarDecl(const std::string &typeHint); // int x = ...

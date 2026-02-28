@@ -101,6 +101,16 @@ ASTNodePtr Parser::parseStatement()
         consume();
         return parseInputStmt();
     }
+    case TokenType::COUT:
+    {
+        consume();
+        return parseCoutStmt();
+    }
+    case TokenType::CIN:
+    {
+        consume();
+        return parseCinStmt();
+    }
     case TokenType::IMPORT:
     {
         consume();
@@ -330,6 +340,76 @@ ASTNodePtr Parser::parseInputStmt()
     while (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON))
         consume();
     return std::make_unique<ASTNode>(InputStmt{target, std::move(prompt)}, ln);
+}
+
+ASTNodePtr Parser::parseCoutStmt()
+{
+    // cout << expr1 << expr2 << endl;
+    // We must NOT call parseExpr() here because parseShift() inside it would
+    // greedily consume << as a bitwise-shift operator.
+    // Instead we call parseAddSub() — one level below shift — so each <<
+    // stays available as the stream-insertion separator.
+    int ln = current().line;
+    std::vector<ASTNodePtr> args;
+    bool newline = false;
+
+    while (check(TokenType::LSHIFT))
+    {
+        consume(); // eat <<
+
+        // "endl" triggers a newline (no value pushed)
+        if (check(TokenType::IDENTIFIER) && current().value == "endl")
+        {
+            consume();
+            newline = true;
+            continue;
+        }
+
+        // Parse the next segment at add/sub precedence so << isn't swallowed
+        auto expr = parseAddSub();
+
+        // If the segment is a string ending with \n, keep it as-is (contains the newline)
+        // Only treat a bare "\n" string as endl
+        if (expr->is<StringLiteral>() && expr->as<StringLiteral>().value == "\n")
+            newline = true;
+        else
+            args.push_back(std::move(expr));
+    }
+
+    while (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON))
+        consume();
+
+    return std::make_unique<ASTNode>(PrintStmt{std::move(args), newline}, ln);
+}
+
+ASTNodePtr Parser::parseCinStmt()
+{
+    // cin >> var1 >> var2;
+    // Each >> reads one variable from stdin
+    int ln = current().line;
+
+    // Collect all target variable names
+    std::vector<std::string> targets;
+    while (check(TokenType::RSHIFT))
+    {
+        consume(); // eat >>
+        if (check(TokenType::BIT_AND))
+            consume(); // strip optional &
+        auto name = expect(TokenType::IDENTIFIER, "Expected variable name after '>>'").value;
+        targets.push_back(name);
+    }
+    while (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON))
+        consume();
+
+    // Emit one InputStmt per target (no prompt, auto-detect type)
+    // Wrap multiple targets in a block
+    if (targets.size() == 1)
+        return std::make_unique<ASTNode>(InputStmt{targets[0], nullptr}, ln);
+
+    BlockStmt block;
+    for (auto &t : targets)
+        block.statements.push_back(std::make_unique<ASTNode>(InputStmt{t, nullptr}, ln));
+    return std::make_unique<ASTNode>(std::move(block), ln);
 }
 
 ASTNodePtr Parser::parseImportStmt()

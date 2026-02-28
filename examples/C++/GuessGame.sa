@@ -1,0 +1,106 @@
+
+    int secretNumber;
+    int guess;
+    int attempts;
+    int maxAttempts;
+    int level;
+    int score = 0;
+    int playAgain = 1;
+    int seed = 12345;
+
+    while(playAgain) {
+
+        cout << "\n=============================\n";
+        cout << "      NUMBER GUESS GAME\n";
+        cout << "=============================\n";
+        cout << "Select Difficulty Level\n";
+        cout << "1. Easy   (10 attempts)\n";
+        cout << "2. Medium (7 attempts)\n";
+        cout << "3. Hard   (5 attempts)\n";
+        cout << "Enter choice: ";
+
+        cin >> level;
+
+        if(level == 1) {
+            maxAttempts = 10;
+        }
+        else if(level == 2) {
+            maxAttempts = 7;
+        }
+        else if(level == 3) {
+            maxAttempts = 5;
+        }
+        else {
+            cout << "Invalid level. Defaulting to Easy.\n";
+            maxAttempts = 10;
+        }
+
+        seed = seed * 1103515245 + 12345;
+        secretNumber = (seed % 100) + 1;
+
+        attempts = 0;
+
+        cout << "\nI picked a number between 1 and 100.\n";
+
+        while(attempts < maxAttempts) {
+
+            cout << "\nAttempt " << attempts + 1 << " of " << maxAttempts << "\n";
+            cout << "Enter your guess: ";
+            cin >> guess;
+
+            attempts++;
+
+            if(guess == secretNumber) {
+                cout << "🎉 Correct! You guessed it!\n";
+
+                if(attempts == 1) score += 100;
+                else if(attempts <= 3) score += 70;
+                else if(attempts <= 5) score += 50;
+                else score += 20;
+
+                break;
+            }
+            else if(guess < secretNumber) {
+                cout << "Too low 🔽\n";
+            }
+            else {
+                cout << "Too high 🔼\n";
+            }
+
+            if(attempts == maxAttempts) {
+                cout << "\nYou lost! The number was " << secretNumber << "\n";
+            }
+        }
+
+        cout << "\nCurrent Score: " << score << "\n";
+
+        cout << "\nPlay again? (1 = Yes, 0 = No): ";
+        cin >> playAgain;
+
+        if(playAgain != 1 && playAgain != 0) {
+            cout << "Invalid input. Exiting game.\n";
+            playAgain = 0;
+        }
+
+        if(playAgain == 1) {
+            cout << "\nStarting new game...\n";
+        }
+
+        if(score > 500) {
+            cout << "\n🔥 Amazing score! You're a master guesser!\n";
+        }
+        else if(score > 200) {
+            cout << "\n👍 Good job! Keep improving.\n";
+        }
+        else {
+            cout << "\nPractice more to improve your score.\n";
+        }
+
+        if(playAgain == 0) {
+            cout << "\n=============================\n";
+            cout << "       GAME OVER\n";
+            cout << "=============================\n";
+            cout << "Final Score: " << score << "\n";
+        }
+
+    }

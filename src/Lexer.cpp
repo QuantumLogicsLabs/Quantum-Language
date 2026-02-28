@@ -21,6 +21,8 @@ const std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"printf", TokenType::PRINT},
     {"input", TokenType::INPUT},
     {"scanf", TokenType::INPUT},
+    {"cout", TokenType::COUT},
+    {"cin", TokenType::CIN},
     {"import", TokenType::IMPORT},
     {"true", TokenType::BOOL_TRUE},
     {"false", TokenType::BOOL_FALSE},
