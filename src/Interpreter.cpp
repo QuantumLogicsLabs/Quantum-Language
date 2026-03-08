@@ -356,45 +356,56 @@ void Interpreter::registerNatives()
 
     reg("scanf", [](std::vector<QuantumValue> args) -> QuantumValue
         {
-        if (args.size() == 1) {
-            // Simple scanf - just prompt and return input
-            if (!args[0].isNil()) std::cout << args[0].toString();
-            std::string line;
-            std::getline(std::cin, line);
-            return QuantumValue(line);
-        } else if (args.size() == 2) {
-            // Formatted scanf - like C's scanf
-            std::string format = args[0].toString();
-            std::cout << format;
-            
-            std::string input;
-            std::getline(std::cin, input);
-            
-            // Simple format parsing for %d, %s, %f, %c
-            if (format.find("%d") != std::string::npos) {
-                int value;
-                std::istringstream iss(input);
-                if (iss >> value) {
-                    return QuantumValue((double)value);
-                }
-            } else if (format.find("%s") != std::string::npos) {
-                return QuantumValue(input);
-            } else if (format.find("%f") != std::string::npos) {
-                double value;
-                std::istringstream iss(input);
-                if (iss >> value) {
-                    return QuantumValue(value);
-                }
-            } else if (format.find("%c") != std::string::npos) {
-               if (!input.empty()) {
-                    return QuantumValue(input);
-               }
-            } else {
-                return QuantumValue(input); // Default case
+        // args: format string, then pointer args (&var) to write values into
+        if (args.empty()) throw RuntimeError("scanf() requires at least a format string");
+        std::string fmt = args[0].isString() ? args[0].asString() : args[0].toString();
+
+        // Collect pointer targets (skip format string)
+        std::vector<std::shared_ptr<QuantumPointer>> targets;
+        for (size_t i = 1; i < args.size(); i++) {
+            if (args[i].isPointer()) {
+                targets.push_back(args[i].asPointer());
             }
-        } else {
-            throw RuntimeError("scanf() requires 1 or 2 arguments");
         }
+
+        // Read one line of input
+        std::string input;
+        std::getline(std::cin, input);
+
+        // Parse format specifiers and write values back through pointers
+        size_t targetIdx = 0;
+        std::istringstream iss(input);
+        size_t fi = 0;
+        while (fi < fmt.size() && targetIdx < targets.size()) {
+            if (fmt[fi] == '%' && fi + 1 < fmt.size()) {
+                char spec = fmt[fi + 1];
+                fi += 2;
+                auto& ptr = targets[targetIdx++];
+                if (!ptr || ptr->isNull()) continue;
+                if (spec == 'd' || spec == 'i') {
+                    long long v = 0; iss >> v;
+                    ptr->deref() = QuantumValue((double)v);
+                } else if (spec == 'f' || spec == 'g' || spec == 'e') {
+                    double v = 0; iss >> v;
+                    ptr->deref() = QuantumValue(v);
+                } else if (spec == 's') {
+                    std::string v; iss >> v;
+                    ptr->deref() = QuantumValue(v);
+                } else if (spec == 'c') {
+                    char c = 0; iss >> c;
+                    ptr->deref() = QuantumValue(std::string(1, c));
+                } else {
+                    // Unknown specifier: just read a token
+                    std::string v; iss >> v;
+                    ptr->deref() = QuantumValue(v);
+                }
+            } else {
+                fi++;
+            }
+        }
+
+        // If no pointer args (legacy call), return the raw input string
+        if (targets.empty()) return QuantumValue(input);
         return QuantumValue(); });
 
     // Type conversion
@@ -763,6 +774,24 @@ void Interpreter::registerNatives()
 
     // ─── Formatted output / string building ───────────────────────────────
     // printf("fmt", args...)  — print formatted, no implicit newline
+    // printf("fmt", args...) — C-style printf: resolves pointer args, prints formatted string
+    reg("printf", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("printf() requires a format string");
+        std::vector<QuantumValue> resolved;
+        resolved.reserve(args.size());
+        for (auto& a : args) {
+            if (a.isPointer()) {
+                auto ptr = a.asPointer();
+                resolved.push_back(ptr && !ptr->isNull() ? ptr->deref() : QuantumValue());
+            } else {
+                resolved.push_back(a);
+            }
+        }
+        std::cout << applyFormat(resolved[0].toString(), resolved, 1);
+        std::cout.flush();
+        return QuantumValue(); });
+
     reg("__printf__", [](std::vector<QuantumValue> args) -> QuantumValue
         {
         if (args.empty()) throw RuntimeError("printf() requires a format string");
