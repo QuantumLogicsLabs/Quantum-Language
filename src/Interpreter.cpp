@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <sstream>
+#include <limits>
 #include <fstream>
 #include <chrono>
 #include <ctime>
@@ -356,7 +357,6 @@ void Interpreter::registerNatives()
 
     reg("scanf", [](std::vector<QuantumValue> args) -> QuantumValue
         {
-        // args: format string, then pointer args (&var) to write values into
         if (args.empty()) throw RuntimeError("scanf() requires at least a format string");
         std::string fmt = args[0].isString() ? args[0].asString() : args[0].toString();
 
@@ -371,6 +371,9 @@ void Interpreter::registerNatives()
         // Read one line of input
         std::string input;
         std::getline(std::cin, input);
+        // Trim trailing CR/whitespace
+        while (!input.empty() && (input.back() == '\r' || input.back() == ' ' || input.back() == '\t'))
+            input.pop_back();
 
         // Parse format specifiers and write values back through pointers
         size_t targetIdx = 0;
@@ -395,7 +398,6 @@ void Interpreter::registerNatives()
                     char c = 0; iss >> c;
                     ptr->deref() = QuantumValue(std::string(1, c));
                 } else {
-                    // Unknown specifier: just read a token
                     std::string v; iss >> v;
                     ptr->deref() = QuantumValue(v);
                 }
@@ -404,7 +406,6 @@ void Interpreter::registerNatives()
             }
         }
 
-        // If no pointer args (legacy call), return the raw input string
         if (targets.empty()) return QuantumValue(input);
         return QuantumValue(); });
 
@@ -774,10 +775,11 @@ void Interpreter::registerNatives()
 
     // ─── Formatted output / string building ───────────────────────────────
     // printf("fmt", args...)  — print formatted, no implicit newline
-    // printf("fmt", args...) — C-style printf: resolves pointer args, prints formatted string
+    // printf("fmt", args...) — C-style printf
     reg("printf", [](std::vector<QuantumValue> args) -> QuantumValue
         {
         if (args.empty()) throw RuntimeError("printf() requires a format string");
+        // Dereference any pointer args before formatting
         std::vector<QuantumValue> resolved;
         resolved.reserve(args.size());
         for (auto& a : args) {
@@ -810,6 +812,21 @@ void Interpreter::registerNatives()
         {
         if (args.empty()) throw RuntimeError("sprintf() requires a format string");
         return QuantumValue(applyFormat(args[0].toString(), args, 1)); });
+
+    // system("pause") / system("cls") / system("clear") — no-op stubs for C++ compat
+    reg("system", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (!args.empty()) {
+            std::string cmd = args[0].toString();
+            // "pause" — just wait for enter
+            if (cmd == "pause") {
+                std::cout << "Press any key to continue . . ." << std::flush;
+                std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+            // "cls" / "clear" — emit newlines (terminal clear not safe in all envs)
+            // Just silently ignore for interpreter use
+        }
+        return QuantumValue(0.0); });
 
     // ─── Math object (JavaScript compatibility) ──────────────────────────
     auto mathDict = std::make_shared<Dict>();
@@ -1796,10 +1813,39 @@ void Interpreter::execInput(InputStmt &s)
         }
         default:
         {
-            // Auto-detect: try number first, fall back to string
-            size_t idx = 0;
-            double d = std::stod(line, &idx);
-            val = (idx == line.size()) ? QuantumValue(d) : QuantumValue(line);
+            // Auto-detect: try number first, fall back to string.
+            // Trim trailing whitespace/CR before parsing so "5\r" parses as 5.
+            std::string trimmed = line;
+            while (!trimmed.empty() && (trimmed.back() == '\r' || trimmed.back() == ' ' || trimmed.back() == '\t'))
+                trimmed.pop_back();
+            try
+            {
+                size_t idx = 0;
+                double d = std::stod(trimmed, &idx);
+                if (idx == trimmed.size())
+                    val = QuantumValue(d);
+                else
+                    val = QuantumValue(trimmed);
+            }
+            catch (...)
+            {
+                val = QuantumValue(trimmed);
+            }
+            // If the target variable already holds a numeric value, force numeric coercion
+            if (val.isString() && !s.target.empty() && env->has(s.target))
+            {
+                auto existing = env->get(s.target);
+                if (existing.isNumber())
+                {
+                    try
+                    {
+                        val = QuantumValue((double)std::stoll(val.asString()));
+                    }
+                    catch (...)
+                    {
+                    }
+                }
+            }
             break;
         }
         }
