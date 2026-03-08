@@ -1,0 +1,32 @@
+// 5. Maze Generator (Recursive Backtracking)
+function generateMaze(rows, cols) {
+  const maze = Array.from({ length: rows }, () => Array(cols).fill("█"));
+  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+
+  function inBounds(r, c) {
+    return r >= 0 && r < rows && c >= 0 && c < cols;
+  }
+
+  function carve(r, c) {
+    visited[r][c] = true;
+    maze[r][c] = " ";
+    const shuffled = dirs.sort(() => Math.random() - 0.5);
+    for (const [dr, dc] of shuffled) {
+      const nr = r + dr, nc = c + dc;
+      if (inBounds(nr, nc) && !visited[nr][nc]) {
+        maze[r + dr / 2][c + dc / 2] = " "; // knock down wall
+        carve(nr, nc);
+      }
+    }
+  }
+
+  carve(1, 1);
+  maze[1][0] = "S"; // Start
+  maze[rows - 2][cols - 1] = "E"; // Exit
+
+  return maze.map((row) => row.join("")).join("\n");
+}
+
+console.log("🧩 Generated Maze (S = Start, E = Exit):\n");
+console.log(generateMaze(15, 31));

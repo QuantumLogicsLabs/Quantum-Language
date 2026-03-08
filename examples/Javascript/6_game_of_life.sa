@@ -1,0 +1,33 @@
+// 1. Conway's Game of Life (Terminal Animation)
+const ROWS = 20, COLS = 60;
+
+function randomGrid() {
+  return Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () => (Math.random() < 0.3 ? 1 : 0))
+  );
+}
+
+function nextGen(grid) {
+  return grid.map((row, r) =>
+    row.map((cell, c) => {
+      const neighbors = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
+        .filter(([dr, dc]) => grid[r+dr]?.[c+dc] === 1).length;
+      return cell ? (neighbors === 2 || neighbors === 3 ? 1 : 0)
+                  : (neighbors === 3 ? 1 : 0);
+    })
+  );
+}
+
+function render(grid, gen) {
+  const frame = grid.map(row => row.map(c => c ? "█" : "·").join("")).join("\n");
+  process.stdout.write(`\x1b[H\x1b[2J`); // clear terminal
+  console.log(`Conway's Game of Life — Generation ${gen}\n${frame}`);
+}
+
+let grid = randomGrid();
+let gen = 0;
+const interval = setInterval(() => {
+  render(grid, gen++);
+  grid = nextGen(grid);
+  if (gen >= 100) { clearInterval(interval); console.log("\nDone."); }
+}, 100);
