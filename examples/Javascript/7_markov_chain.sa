@@ -1,0 +1,39 @@
+// 2. Markov Chain Text Generator
+function buildChain(text, order = 2) {
+  const chain = {};
+  const words = text.split(/\s+/);
+  for (let i = 0; i < words.length - order; i++) {
+    const key = words.slice(i, i + order).join(" ");
+    const next = words[i + order];
+    if (!chain[key]) chain[key] = [];
+    chain[key].push(next);
+  }
+  return chain;
+}
+
+function generate(chain, order = 2, length = 80) {
+  const keys = Object.keys(chain);
+  let key = keys[Math.floor(Math.random() * keys.length)];
+  const words = key.split(" ");
+
+  for (let i = 0; i < length; i++) {
+    const options = chain[key];
+    if (!options) break;
+    const next = options[Math.floor(Math.random() * options.length)];
+    words.push(next);
+    key = words.slice(-order).join(" ");
+  }
+  return words.join(" ");
+}
+
+const corpus = `
+  the quick brown fox jumps over the lazy dog the fox ran quickly across the
+  field the dog chased the fox but the fox was too quick the brown dog barked
+  loudly at the quick brown fox as it leaped over the sleeping lazy dog near
+  the old oak tree the fox disappeared into the forest while the dog returned
+  home the lazy dog slept under the tree dreaming of chasing the quick fox again
+`.trim();
+
+const chain = buildChain(corpus, 2);
+console.log("📝 Markov Chain Generated Text:\n");
+console.log(generate(chain, 2, 60));

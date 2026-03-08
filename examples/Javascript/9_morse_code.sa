@@ -1,0 +1,33 @@
+// 4. Morse Code Translator (with audio beep sequences printed)
+const MORSE = {
+  A:".-", B:"-...", C:"-.-.", D:"-..", E:".", F:"..-.", G:"--.", H:"....",
+  I:"..", J:".---", K:"-.-", L:".-..", M:"--", N:"-.", O:"---", P:".--.",
+  Q:"--.-", R:".-.", S:"...", T:"-", U:"..-", V:"...-", W:".--", X:"-..-",
+  Y:"-.--", Z:"--..", "0":"-----","1":".----","2":"..---","3":"...--",
+  "4":"....-","5":".....","6":"-....","7":"--...","8":"---..","9":"----.",
+  ".":".-.-.-", ",":"--..--", "?":"..--..", "!":"-.-.--", " ": "/"
+};
+
+const REVERSE = Object.fromEntries(Object.entries(MORSE).map(([k, v]) => [v, k]));
+
+function encode(text) {
+  return text.toUpperCase().split("").map(c => MORSE[c] || "?").join(" ");
+}
+
+function decode(morse) {
+  return morse.split(" ").map(token => token === "/" ? " " : (REVERSE[token] || "?")).join("");
+}
+
+function toBeeps(morse) {
+  return morse.replace(/\./g, "·").replace(/-/g, "—").replace(/\//g, " | ");
+}
+
+const text = "Hello World";
+const encoded = encode(text);
+const decoded = decode(encoded);
+
+console.log("📡 Morse Code Translator\n");
+console.log(`Original : ${text}`);
+console.log(`Encoded  : ${encoded}`);
+console.log(`Beeps    : ${toBeeps(encoded)}`);
+console.log(`Decoded  : ${decoded}`);

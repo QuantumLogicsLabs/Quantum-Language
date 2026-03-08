@@ -1,0 +1,19 @@
+// 2. Caesar Cipher Encoder / Decoder
+function caesar(text, shift, decode = false) {
+  if (decode) shift = (26 - shift) % 26;
+  return text.replace(/[a-zA-Z]/g, (char) => {
+    const base = char < "a" ? 65 : 97;
+    return String.fromCharCode(((char.charCodeAt(0) - base + shift) % 26) + base);
+  });
+}
+
+const message = "Hello, World! This is a secret message.";
+const shift = 13; // ROT13
+
+const encoded = caesar(message, shift);
+const decoded = caesar(encoded, shift, true);
+
+console.log("Original :", message);
+console.log("Encoded  :", encoded);
+console.log("Decoded  :", decoded);
+console.log("Match    :", message === decoded);

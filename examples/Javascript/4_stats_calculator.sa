@@ -1,0 +1,30 @@
+// 4. Statistics Calculator
+function stats(data) {
+  if (!data.length) return null;
+  const sorted = [...data].sort((a, b) => a - b);
+  const n = data.length;
+  const sum = data.reduce((a, b) => a + b, 0);
+  const mean = sum / n;
+  const variance = data.reduce((acc, x) => acc + (x - mean) ** 2, 0) / n;
+  const mid = Math.floor(n / 2);
+  const median = n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const freq = data.reduce((map, v) => map.set(v, (map.get(v) || 0) + 1), new Map());
+  const maxFreq = Math.max(...freq.values());
+  const mode = [...freq.entries()].filter(([, f]) => f === maxFreq).map(([v]) => v);
+
+  return {
+    count: n,
+    sum: sum.toFixed(2),
+    min: sorted[0],
+    max: sorted[n - 1],
+    range: sorted[n - 1] - sorted[0],
+    mean: mean.toFixed(4),
+    median,
+    mode,
+    stdDev: Math.sqrt(variance).toFixed(4),
+  };
+}
+
+const dataset = [4, 8, 15, 16, 23, 42, 4, 8, 15, 16, 23, 42, 7];
+console.log("Dataset:", dataset);
+console.log("Stats:", stats(dataset));

@@ -1,0 +1,63 @@
+// 5. Procedural Dungeon Generator
+const W = 60, H = 24;
+const NUM_ROOMS = 10;
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+function createGrid() {
+  return Array.from({ length: H }, () => Array(W).fill("░"));
+}
+
+function placeRoom(grid, room) {
+  for (let y = room.y; y < room.y + room.h; y++)
+    for (let x = room.x; x < room.x + room.w; x++)
+      grid[y][x] = " ";
+  // Walls
+  for (let x = room.x; x < room.x + room.w; x++) {
+    grid[room.y][x] = "─"; grid[room.y + room.h - 1][x] = "─";
+  }
+  for (let y = room.y; y < room.y + room.h; y++) {
+    grid[y][room.x] = "│"; grid[y][room.x + room.w - 1] = "│";
+  }
+  grid[room.y][room.x] = "┌"; grid[room.y][room.x + room.w - 1] = "┐";
+  grid[room.y + room.h - 1][room.x] = "└"; grid[room.y + room.h - 1][room.x + room.w - 1] = "┘";
+}
+
+function carveCorridor(grid, x1, y1, x2, y2) {
+  while (x1 !== x2) { grid[y1][x1] = "·"; x1 += x1 < x2 ? 1 : -1; }
+  while (y1 !== y2) { grid[y1][x1] = "·"; y1 += y1 < y2 ? 1 : -1; }
+}
+
+function center(room) {
+  return { x: Math.floor(room.x + room.w / 2), y: Math.floor(room.y + room.h / 2) };
+}
+
+const grid = createGrid();
+const rooms = [];
+
+for (let i = 0; i < NUM_ROOMS * 10 && rooms.length < NUM_ROOMS; i++) {
+  const w = randInt(6, 14), h = randInt(4, 8);
+  const x = randInt(1, W - w - 1), y = randInt(1, H - h - 1);
+  const newRoom = { x, y, w, h };
+  const overlap = rooms.some(r =>
+    x < r.x + r.w + 1 && x + w + 1 > r.x && y < r.y + r.h + 1 && y + h + 1 > r.y
+  );
+  if (!overlap) rooms.push(newRoom);
+}
+
+rooms.forEach((room, i) => {
+  placeRoom(grid, room);
+  if (i > 0) {
+    const c1 = center(rooms[i - 1]), c2 = center(room);
+    carveCorridor(grid, c1.x, c1.y, c2.x, c2.y);
+  }
+});
+
+// Place player @ start, exit @ last room
+const start = center(rooms[0]), exit = center(rooms[rooms.length - 1]);
+grid[start.y][start.x] = "@";
+grid[exit.y][exit.x] = "★";
+
+console.log("🏰 Procedural Dungeon (@ = Player, ★ = Exit)\n");
+console.log(grid.map(row => row.join("")).join("\n"));
+console.log(`\nRooms generated: ${rooms.length}`);
