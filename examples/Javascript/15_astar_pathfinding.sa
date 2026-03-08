@@ -1,0 +1,77 @@
+// 5. A* Pathfinding Visualizer
+const GRID_W = 40, GRID_H = 18;
+
+function createGrid(wallDensity = 0.28) {
+  return Array.from({ length: GRID_H }, (_, r) =>
+    Array.from({ length: GRID_W }, (_, c) =>
+      (r === 0 && c === 0) || (r === GRID_H-1 && c === GRID_W-1)
+        ? 0 : (Math.random() < wallDensity ? 1 : 0)
+    )
+  );
+}
+
+function heuristic(a, b) {
+  return Math.abs(a.r - b.r) + Math.abs(a.c - b.c);
+}
+
+function aStar(grid, start, end) {
+  const key = (r, c) => `${r},${c}`;
+  const open = [{ ...start, g: 0, f: heuristic(start, end), parent: null }];
+  const closed = new Set();
+  const best = { [key(start.r, start.c)]: 0 };
+
+  while (open.length) {
+    open.sort((a, b) => a.f - b.f);
+    const cur = open.shift();
+    const k = key(cur.r, cur.c);
+    if (closed.has(k)) continue;
+    closed.add(k);
+
+    if (cur.r === end.r && cur.c === end.c) {
+      const path = [];
+      let node = cur;
+      while (node) { path.unshift({ r: node.r, c: node.c }); node = node.parent; }
+      return { path, visited: closed.size };
+    }
+
+    for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      const nr = cur.r + dr, nc = cur.c + dc;
+      if (nr < 0 || nr >= GRID_H || nc < 0 || nc >= GRID_W) continue;
+      if (grid[nr][nc] === 1) continue;
+      const nk = key(nr, nc);
+      if (closed.has(nk)) continue;
+      const g = cur.g + 1;
+      if (best[nk] !== undefined && best[nk] <= g) continue;
+      best[nk] = g;
+      open.push({ r: nr, c: nc, g, f: g + heuristic({ r: nr, c: nc }, end), parent: cur });
+    }
+  }
+  return null;
+}
+
+function render(grid, path, visited) {
+  const pathSet = new Set(path?.map(p => `${p.r},${p.c}`) ?? []);
+  const rows = grid.map((row, r) =>
+    row.map((cell, c) => {
+      const k = `${r},${c}`;
+      if (r === 0 && c === 0) return "S";
+      if (r === GRID_H-1 && c === GRID_W-1) return "E";
+      if (pathSet.has(k)) return "█";
+      return cell === 1 ? "▓" : "·";
+    }).join("")
+  );
+  return rows.join("\n");
+}
+
+const grid = createGrid();
+const start = { r: 0, c: 0 }, end = { r: GRID_H - 1, c: GRID_W - 1 };
+const result = aStar(grid, start, end);
+
+console.log("🗺️  A* Pathfinding  (S=Start  E=End  █=Path  ▓=Wall  ·=Open)\n");
+if (result) {
+  console.log(render(grid, result.path));
+  console.log(`\n✅ Path found! Length: ${result.path.length} steps  |  Nodes explored: ${result.visited}`);
+} else {
+  console.log(render(grid, null));
+  console.log("\n❌ No path found — try re-running for a different map.");
+}

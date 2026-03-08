@@ -1,0 +1,54 @@
+// 1. Binary Search Tree with Traversals & Visualization
+class Node {
+  constructor(val) { this.val = val; this.left = this.right = null; }
+}
+
+class BST {
+  constructor() { this.root = null; }
+
+  insert(val) {
+    const node = new Node(val);
+    if (!this.root) { this.root = node; return; }
+    let cur = this.root;
+    while (true) {
+      if (val < cur.val) {
+        if (!cur.left) { cur.left = node; break; }
+        cur = cur.left;
+      } else {
+        if (!cur.right) { cur.right = node; break; }
+        cur = cur.right;
+      }
+    }
+  }
+
+  inOrder(node = this.root, result = []) {
+    if (node) { this.inOrder(node.left, result); result.push(node.val); this.inOrder(node.right, result); }
+    return result;
+  }
+
+  preOrder(node = this.root, result = []) {
+    if (node) { result.push(node.val); this.preOrder(node.left, result); this.preOrder(node.right, result); }
+    return result;
+  }
+
+  postOrder(node = this.root, result = []) {
+    if (node) { this.postOrder(node.left, result); this.postOrder(node.right, result); result.push(node.val); }
+    return result;
+  }
+
+  print(node = this.root, prefix = "", isLeft = true) {
+    if (!node) return;
+    console.log(prefix + (isLeft ? "├── " : "└── ") + node.val);
+    this.print(node.left,  prefix + (isLeft ? "│   " : "    "), true);
+    this.print(node.right, prefix + (isLeft ? "│   " : "    "), false);
+  }
+}
+
+const tree = new BST();
+[50, 30, 70, 20, 40, 60, 80, 10, 25, 35, 45].forEach(v => tree.insert(v));
+
+console.log("🌳 Binary Search Tree:\n");
+tree.print(tree.root, "", false);
+console.log("\nIn-Order   (sorted):", tree.inOrder().join(" → "));
+console.log("Pre-Order  (root first):", tree.preOrder().join(" → "));
+console.log("Post-Order (root last):", tree.postOrder().join(" → "));

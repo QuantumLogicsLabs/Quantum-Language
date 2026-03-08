@@ -1,0 +1,50 @@
+// 3. ASCII Solar System Orbit Simulator
+const WIDTH = 79, HEIGHT = 39;
+const CX = Math.floor(WIDTH / 2), CY = Math.floor(HEIGHT / 2);
+
+const PLANETS = [
+  { name: "Mercury", symbol: "m", radius: 5,  speed: 0.24, angle: 0.0 },
+  { name: "Venus",   symbol: "v", radius: 9,  speed: 0.62, angle: 1.0 },
+  { name: "Earth",   symbol: "E", radius: 13, speed: 1.00, angle: 2.0 },
+  { name: "Mars",    symbol: "M", radius: 17, speed: 0.53, angle: 3.5 },
+  { name: "Jupiter", symbol: "J", radius: 24, speed: 0.08, angle: 1.2 },
+  { name: "Saturn",  symbol: "S", radius: 31, speed: 0.03, angle: 4.1 },
+];
+
+function drawFrame(t) {
+  const grid = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(" "));
+
+  // Draw orbits
+  PLANETS.forEach(p => {
+    for (let a = 0; a < Math.PI * 2; a += 0.05) {
+      const x = Math.round(CX + p.radius * 2 * Math.cos(a));
+      const y = Math.round(CY + p.radius * Math.sin(a));
+      if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) grid[y][x] = "·";
+    }
+  });
+
+  // Sun
+  grid[CY][CX] = "☀";
+
+  // Planets
+  PLANETS.forEach(p => {
+    const a = p.angle + t * p.speed * 0.1;
+    const x = Math.round(CX + p.radius * 2 * Math.cos(a));
+    const y = Math.round(CY + p.radius * Math.sin(a));
+    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) grid[y][x] = p.symbol;
+  });
+
+  return grid.map(row => row.join("")).join("\n");
+}
+
+let t = 0;
+const legend = PLANETS.map(p => `${p.symbol}=${p.name}`).join("  ");
+
+const interval = setInterval(() => {
+  process.stdout.write("\x1b[H\x1b[2J");
+  console.log(`🪐 Solar System Simulator  [t=${t}]\n`);
+  console.log(drawFrame(t));
+  console.log(`\n  ${legend}`);
+  t++;
+  if (t > 200) { clearInterval(interval); console.log("\nSimulation complete."); }
+}, 80);

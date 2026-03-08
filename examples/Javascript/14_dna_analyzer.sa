@@ -1,0 +1,60 @@
+// 4. DNA Sequence Analyzer
+const COMPLEMENT = { A: "T", T: "A", G: "C", C: "G" };
+const CODONS = {
+  AUG:"Met(Start)", UAA:"Stop", UAG:"Stop", UGA:"Stop",
+  UUU:"Phe", UUC:"Phe", UUA:"Leu", UUG:"Leu",
+  CUU:"Leu", CUC:"Leu", CUA:"Leu", CUG:"Leu",
+  AUU:"Ile", AUC:"Ile", AUA:"Ile",
+  GUU:"Val", GUC:"Val", GUA:"Val", GUG:"Val",
+  UCU:"Ser", UCC:"Ser", UCA:"Ser", UCG:"Ser",
+  CCU:"Pro", CCC:"Pro", CCA:"Pro", CCG:"Pro",
+  ACU:"Thr", ACC:"Thr", ACA:"Thr", ACG:"Thr",
+  GCU:"Ala", GCC:"Ala", GCA:"Ala", GCG:"Ala",
+  UAU:"Tyr", UAC:"Tyr", CAU:"His", CAC:"His",
+  CAA:"Gln", CAG:"Gln", AAU:"Asn", AAC:"Asn",
+  AAA:"Lys", AAG:"Lys", GAU:"Asp", GAC:"Asp",
+  GAA:"Glu", GAG:"Glu", UGU:"Cys", UGC:"Cys",
+  UGG:"Trp", CGU:"Arg", CGC:"Arg", CGA:"Arg",
+  CGG:"Arg", AGA:"Arg", AGG:"Arg", AGU:"Ser",
+  AGC:"Ser", GGU:"Gly", GGC:"Gly", GGA:"Gly", GGG:"Gly",
+};
+
+function analyze(dna) {
+  dna = dna.toUpperCase().replace(/[^ATGC]/g, "");
+  const complement = dna.split("").map(b => COMPLEMENT[b]).join("");
+  const reverseComplement = complement.split("").reverse().join("");
+  const counts = { A: 0, T: 0, G: 0, C: 0 };
+  dna.split("").forEach(b => counts[b]++);
+  const gcContent = (((counts.G + counts.C) / dna.length) * 100).toFixed(1);
+
+  // Transcribe to mRNA
+  const mRNA = dna.replace(/T/g, "U");
+
+  // Translate from first AUG
+  const start = mRNA.indexOf("AUG");
+  const proteins = [];
+  if (start !== -1) {
+    for (let i = start; i <= mRNA.length - 3; i += 3) {
+      const codon = mRNA.slice(i, i + 3);
+      const aa = CODONS[codon] || "???";
+      proteins.push(`${codon}→${aa}`);
+      if (aa === "Stop") break;
+    }
+  }
+
+  return { length: dna.length, counts, gcContent, complement, reverseComplement, mRNA, proteins };
+}
+
+const sequence = "ATGAAAGCAATTTTCGTACTGAAAGGTTTTGTTGGTTTTCTTAAATAG";
+const result = analyze(sequence);
+
+console.log("🧬 DNA Sequence Analyzer\n");
+console.log(`Sequence (5'→3'):    ${sequence}`);
+console.log(`Length:              ${result.length} bp`);
+console.log(`Nucleotides:         A=${result.counts.A} T=${result.counts.T} G=${result.counts.G} C=${result.counts.C}`);
+console.log(`GC Content:          ${result.gcContent}%`);
+console.log(`Complement (3'→5'):  ${result.complement}`);
+console.log(`Rev. Complement:     ${result.reverseComplement}`);
+console.log(`mRNA Transcript:     ${result.mRNA}`);
+console.log(`\nProtein Translation:`);
+result.proteins.forEach((p, i) => console.log(`  Codon ${i + 1}: ${p}`));

@@ -1,0 +1,91 @@
+// 2. Mini Math Expression Interpreter (Lexer → Parser → Evaluator)
+// Supports: +  -  *  /  ^  ()  variables  let x = expr
+
+function tokenize(expr) {
+  const tokens = [];
+  let i = 0;
+  while (i < expr.length) {
+    if (/\s/.test(expr[i])) { i++; continue; }
+    if (/\d/.test(expr[i])) {
+      let num = "";
+      while (i < expr.length && /[\d.]/.test(expr[i])) num += expr[i++];
+      tokens.push({ type: "NUM", val: parseFloat(num) });
+    } else if (/[a-z]/i.test(expr[i])) {
+      let word = "";
+      while (i < expr.length && /[a-z]/i.test(expr[i])) word += expr[i++];
+      tokens.push({ type: word === "let" ? "LET" : "VAR", val: word });
+    } else {
+      tokens.push({ type: "OP", val: expr[i++] });
+    }
+  }
+  return tokens;
+}
+
+function parse(tokens) {
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const eat = (v) => { const t = tokens[pos++]; if (v && t?.val !== v) throw `Expected ${v}`; return t; };
+
+  function primary() {
+    const t = peek();
+    if (t?.type === "NUM") { pos++; return { type: "num", val: t.val }; }
+    if (t?.type === "VAR") { pos++; return { type: "var", name: t.val }; }
+    if (t?.val === "(") { eat("("); const e = addSub(); eat(")"); return e; }
+    throw `Unexpected: ${t?.val}`;
+  }
+
+  function power() {
+    let left = primary();
+    while (peek()?.val === "^") { eat("^"); left = { type: "^", left, right: primary() }; }
+    return left;
+  }
+
+  function mulDiv() {
+    let left = power();
+    while (["*", "/"].includes(peek()?.val)) {
+      const op = eat().val; left = { type: op, left, right: power() };
+    }
+    return left;
+  }
+
+  function addSub() {
+    let left = mulDiv();
+    while (["+", "-"].includes(peek()?.val)) {
+      const op = eat().val; left = { type: op, left, right: mulDiv() };
+    }
+    return left;
+  }
+
+  if (tokens[0]?.type === "LET") {
+    eat(); const name = eat().val; eat("="); return { type: "let", name, expr: addSub() };
+  }
+  return addSub();
+}
+
+function evaluate(node, env = {}) {
+  if (node.type === "num") return node.val;
+  if (node.type === "var") {
+    if (!(node.name in env)) throw `Undefined variable: ${node.name}`;
+    return env[node.name];
+  }
+  if (node.type === "let") { env[node.name] = evaluate(node.expr, env); return env[node.name]; }
+  const l = evaluate(node.left, env), r = evaluate(node.right, env);
+  return { "+": l+r, "-": l-r, "*": l*r, "/": l/r, "^": l**r }[node.type];
+}
+
+const env = {};
+const programs = [
+  "let x = 10",
+  "let y = 3 + 2",
+  "x * y",
+  "(x + y) ^ 2",
+  "x / (y - 2)",
+  "let z = x * y + (x - y) ^ 2",
+  "z",
+];
+
+console.log("🧮 Mini Math Interpreter\n");
+for (const line of programs) {
+  const result = evaluate(parse(tokenize(line)), env);
+  console.log(`  ${line.padEnd(28)} → ${result}`);
+}

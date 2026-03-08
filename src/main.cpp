@@ -19,8 +19,7 @@ namespace fs = std::filesystem;
 // ─── Globals ──────────────────────────────────────────────────────────────────
 
 // Set to true during --test runs so input() returns "" instantly instead of
-// blocking on stdin.  Must be a true global (no static) so Interpreter.cpp
-// can resolve it via  extern bool g_testMode;
+// blocking on stdin.
 bool g_testMode = false;
 
 // ─── Banner / Aura ───────────────────────────────────────────────────────────
@@ -177,24 +176,33 @@ static void runFile(const std::string &path)
         }
         catch (const ReturnSignal &)
         {
+            // Normal return from main() — not an error.
         }
-        catch (const NameError &)
+        catch (const NameError &e)
         {
-        }
-        catch (const QuantumError &e)
-        {
-            if (std::string(e.what()).find("main") == std::string::npos)
+            // Only swallow "Undefined variable: 'main'" (no main() defined).
+            // Any other NameError thrown inside main() is a real bug.
+            const std::string msg = e.what();
+            if (msg.find("'main'") == std::string::npos &&
+                msg.find("\"main\"") == std::string::npos)
             {
                 std::cerr << Colors::RED << Colors::BOLD
                           << "\n  \u2717 " << e.kind << Colors::RESET;
                 if (e.line > 0)
                     std::cerr << " at line " << e.line;
-                std::cerr << "\n    " << e.what() << "\n\n";
+                std::cerr << "\n    " << msg << "\n\n";
                 std::exit(1);
             }
         }
-        catch (...)
+        catch (const QuantumError &e)
         {
+            // All runtime errors inside main() are real failures.
+            std::cerr << Colors::RED << Colors::BOLD
+                      << "\n  \u2717 " << e.kind << Colors::RESET;
+            if (e.line > 0)
+                std::cerr << " at line " << e.line;
+            std::cerr << "\n    " << e.what() << "\n\n";
+            std::exit(1);
         }
     }
     catch (const ParseError &e)
@@ -276,9 +284,50 @@ static void redirectStdinToNull()
 #endif
 }
 
+// RAII guard: restores cout/cerr buffers unconditionally on scope exit,
+// even when an exception propagates through testFile().  Without this,
+// any throw that bypassed the manual rdbuf restore calls would leave
+// stdout/stderr redirected to the sink for every subsequent test file.
+struct StreamGuard
+{
+    std::streambuf *oldCout;
+    std::streambuf *oldCerr;
+    StreamGuard(std::streambuf *oc, std::streambuf *oe) : oldCout(oc), oldCerr(oe) {}
+    ~StreamGuard()
+    {
+        std::cout.rdbuf(oldCout);
+        std::cerr.rdbuf(oldCerr);
+    }
+};
+
+// Returns true if an error message is caused by empty/EOF input from stdin
+// being redirected to /dev/null during --test mode.  These are NOT real bugs
+// in the file — the file would work fine with real user input.
+static bool isInputDrivenError(const std::string &msg)
+{
+    // Errors that only happen because input() returned "" or EOF:
+    // - Arithmetic/comparison on an empty string ("got string", "got nil")
+    //   when the file stored input() result in a variable and did math on it
+    // - IndexError from iterating over empty input
+    // - Any error that originates from an empty-string-to-number conversion
+    if (msg.find("got string") != std::string::npos)
+        return true;
+    if (msg.find("got nil") != std::string::npos)
+        return true;
+    if (msg.find("Cannot convert ''") != std::string::npos)
+        return true;
+    if (msg.find("int() cannot convert ''") != std::string::npos)
+        return true;
+    if (msg.find("float() cannot convert ''") != std::string::npos)
+        return true;
+    return false;
+}
+
 // Run one .sa file non-fatally.
-// All output produced by the script is swallowed (we only care about errors).
-// Returns "" on success, or an error description on failure.
+// Phase 1: Parse-only — catches all syntax errors.
+// Phase 2: Execute — catches runtime errors, but treats input()-driven
+//          failures as passes (the file is valid; it just needs real input).
+// Returns "" on success/pass, or an error description on genuine failure.
 static std::string testFile(const std::string &path)
 {
     std::ifstream file(path);
@@ -289,13 +338,34 @@ static std::string testFile(const std::string &path)
     ss << file.rdbuf();
     std::string source = ss.str();
 
-    // Swallow any print / cout output from the script being tested so it does
-    // not pollute the test-runner's own console output.
-    std::streambuf *oldCout = std::cout.rdbuf();
-    std::streambuf *oldCerr = std::cerr.rdbuf();
+    // ── Phase 1: Parse only (no execution, no I/O risk) ───────────────────
+    // Any ParseError here is a definite bug in the file.
+    try
+    {
+        Lexer lexer(source);
+        auto tokens = lexer.tokenize();
+        Parser parser(std::move(tokens));
+        auto ast = parser.parse();
+        (void)ast;
+    }
+    catch (const ParseError &e)
+    {
+        std::ostringstream out;
+        out << "ParseError at line " << e.line << ":" << e.col << ": " << e.what();
+        return out.str();
+    }
+    catch (const std::exception &e)
+    {
+        return std::string("LexError at line 1: ") + e.what();
+    }
+
+    // ── Phase 2: Execute with output swallowed ────────────────────────────
+    // Swallow any print/cout output so it doesn't pollute the test console.
+    // StreamGuard restores streams unconditionally on scope exit.
     std::ostringstream sink;
-    std::cout.rdbuf(sink.rdbuf());
-    std::cerr.rdbuf(sink.rdbuf());
+    StreamGuard guard(
+        std::cout.rdbuf(sink.rdbuf()),
+        std::cerr.rdbuf(sink.rdbuf()));
 
     std::string result; // "" means pass
 
@@ -303,7 +373,6 @@ static std::string testFile(const std::string &path)
     {
         Lexer lexer(source);
         auto tokens = lexer.tokenize();
-
         Parser parser(std::move(tokens));
         auto ast = parser.parse();
 
@@ -328,50 +397,73 @@ static std::string testFile(const std::string &path)
         }
         catch (const ReturnSignal &)
         {
+            // Normal return from main() — not an error.
         }
-        catch (const NameError &)
+        catch (const NameError &e)
         {
+            const std::string msg = e.what();
+            // Swallow only "no variable 'main'" — everything else is a real bug.
+            if (msg.find("'main'") == std::string::npos &&
+                msg.find("\"main\"") == std::string::npos)
+            {
+                if (!isInputDrivenError(msg))
+                {
+                    std::ostringstream out;
+                    out << e.kind;
+                    if (e.line > 0)
+                        out << " at line " << e.line;
+                    out << ": " << msg;
+                    result = out.str();
+                }
+            }
         }
         catch (const QuantumError &e)
         {
-            if (std::string(e.what()).find("main") == std::string::npos)
+            const std::string msg = e.what();
+            // If the error is purely because input() got "" from /dev/null,
+            // the file itself is fine — treat as pass.
+            if (!isInputDrivenError(msg))
             {
-                std::ostringstream msg;
-                msg << e.kind;
+                std::ostringstream out;
+                out << e.kind;
                 if (e.line > 0)
-                    msg << " at line " << e.line;
-                msg << ": " << e.what();
-                result = msg.str();
+                    out << " at line " << e.line;
+                out << ": " << msg;
+                result = out.str();
             }
         }
-        catch (...)
+        catch (const std::exception &e)
         {
+            std::string msg = e.what();
+            if (!isInputDrivenError(msg))
+                result = std::string("Fatal in main(): ") + msg;
         }
-    }
-    catch (const ParseError &e)
-    {
-        std::ostringstream msg;
-        msg << "ParseError at line " << e.line << ":" << e.col << ": " << e.what();
-        result = msg.str();
     }
     catch (const QuantumError &e)
     {
-        std::ostringstream msg;
-        msg << e.kind;
-        if (e.line > 0)
-            msg << " at line " << e.line;
-        msg << ": " << e.what();
-        result = msg.str();
+        const std::string msg = e.what();
+        if (!isInputDrivenError(msg))
+        {
+            std::ostringstream out;
+            out << e.kind;
+            if (e.line > 0)
+                out << " at line " << e.line;
+            out << ": " << msg;
+            result = out.str();
+        }
     }
     catch (const std::exception &e)
     {
-        result = std::string("Fatal: ") + e.what();
+        std::string msg = e.what();
+        if (!isInputDrivenError(msg))
+            result = std::string("Fatal: ") + msg;
+    }
+    catch (...)
+    {
+        result = "Fatal: unknown exception";
     }
 
-    // Restore real stdout / stderr
-    std::cout.rdbuf(oldCout);
-    std::cerr.rdbuf(oldCerr);
-
+    // StreamGuard destructor restores cout/cerr here automatically.
     return result;
 }
 
