@@ -163,7 +163,10 @@ int main()
   FAILED FILE #4
 ################################################################################
   Path  : examples\C++\OOPs\Lab 3\solution\LAB03-TASK04.sa
-  Error : ParseError at line 10:8: Unexpected token: '.'
+  Error : ParseError: Unexpected token: '.'
+  Line  : 10:8
+  Code  :     cin.ignore();
+                 ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -227,7 +230,10 @@ int main()
   FAILED FILE #5
 ################################################################################
   Path  : examples\C++\OOPs\Lab 3\solution\LAB03-TASK05.sa
-  Error : ParseError at line 5:20: Expected ')' (got '<')
+  Error : ParseError: Expected ')' (got '<')
+  Line  : 5:20
+  Code  : void add(unique_ptr<int[]> &ptr, int &size, int &m)
+                             ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -412,7 +418,10 @@ print("Pattern completed!")
   FAILED FILE #7
 ################################################################################
   Path  : examples\Javascript\10_dungeon_generator.sa
-  Error : ParseError at line 2:13: Unexpected token: ','
+  Error : ParseError: Unexpected token: ','
+  Line  : 2:13
+  Code  : const W = 60, H = 24;
+                      ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -486,7 +495,10 @@ console.log(`\nRooms generated: ${rooms.length}`);
   FAILED FILE #8
 ################################################################################
   Path  : examples\Javascript\11_binary_search_tree.sa
-  Error : ParseError at line 45:1: Unexpected token: '}'
+  Error : ParseError: Unexpected token: '}'
+  Line  : 45:1
+  Code  : }
+          ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -551,7 +563,9 @@ console.log("Post-Order (root last):", tree.postOrder().join(" → "));
   FAILED FILE #9
 ################################################################################
   Path  : examples\Javascript\12_math_interpreter.sa
-  Error : LexError at line 1: Unexpected character: \
+  Error : LexError: Unexpected character: \
+  Line  : 1
+  Code  : // 2. Mini Math Expression Interpreter (Lexer → Parser → Evaluator)
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -653,7 +667,10 @@ for (const line of programs) {
   FAILED FILE #10
 ################################################################################
   Path  : examples\Javascript\13_solar_system.sa
-  Error : ParseError at line 2:17: Unexpected token: ','
+  Error : ParseError: Unexpected token: ','
+  Line  : 2:17
+  Code  : const WIDTH = 79, HEIGHT = 39;
+                          ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -714,7 +731,10 @@ const interval = setInterval(() => {
   FAILED FILE #11
 ################################################################################
   Path  : examples\Javascript\14_dna_analyzer.sa
-  Error : ParseError at line 23:35: Unexpected token: '/'
+  Error : ParseError: Unexpected token: '/'
+  Line  : 23:35
+  Code  :   dna = dna.toUpperCase().replace(/[^ATGC]/g, "");
+                                            ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -785,7 +805,10 @@ result.proteins.forEach((p, i) => console.log(`  Codon ${i + 1}: ${p}`));
   FAILED FILE #12
 ################################################################################
   Path  : examples\Javascript\15_astar_pathfinding.sa
-  Error : ParseError at line 2:18: Unexpected token: ','
+  Error : ParseError: Unexpected token: ','
+  Line  : 2:18
+  Code  : const GRID_W = 40, GRID_H = 18;
+                           ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -873,7 +896,10 @@ if (result) {
   FAILED FILE #13
 ################################################################################
   Path  : examples\Javascript\1_password_generator.sa
-  Error : ParseError at line 13:22: Expected member name (got 'from')
+  Error : ParseError: Expected member name (got 'from')
+  Line  : 13:22
+  Code  :   const rest = Array.from({ length: length - required.length }, () =>
+                               ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -907,7 +933,10 @@ for (let i = 0; i < 5; i++) {
   FAILED FILE #14
 ################################################################################
   Path  : examples\Javascript\2_caesar_cipher.sa
-  Error : ParseError at line 4:23: Unexpected token: '/'
+  Error : ParseError: Unexpected token: '/'
+  Line  : 4:23
+  Code  :   return text.replace(/[a-zA-Z]/g, (char) => {
+                                ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -971,7 +1000,10 @@ countdown(10); // 10-second demo countdown
   FAILED FILE #16
 ################################################################################
   Path  : examples\Javascript\4_stats_calculator.sa
-  Error : ParseError at line 4:19: Unexpected token: '.'
+  Error : ParseError: Unexpected token: '.'
+  Line  : 4:19
+  Code  :   const sorted = [...data].sort((a, b) => a - b);
+                            ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1012,7 +1044,10 @@ console.log("Stats:", stats(dataset));
   FAILED FILE #17
 ################################################################################
   Path  : examples\Javascript\5_maze_generator.sa
-  Error : ParseError at line 3:22: Expected member name (got 'from')
+  Error : ParseError: Expected member name (got 'from')
+  Line  : 3:22
+  Code  :   const maze = Array.from({ length: rows }, () => Array(cols).fill("█"));
+                               ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1055,7 +1090,10 @@ console.log(generateMaze(15, 31));
   FAILED FILE #18
 ################################################################################
   Path  : examples\Javascript\6_game_of_life.sa
-  Error : ParseError at line 2:16: Unexpected token: ','
+  Error : ParseError: Unexpected token: ','
+  Line  : 2:16
+  Code  : const ROWS = 20, COLS = 60;
+                         ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1099,7 +1137,9 @@ const interval = setInterval(() => {
   FAILED FILE #19
 ################################################################################
   Path  : examples\Javascript\7_markov_chain.sa
-  Error : LexError at line 1: Unexpected character: \
+  Error : LexError: Unexpected character: \
+  Line  : 1
+  Code  : // 2. Markov Chain Text Generator
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1149,7 +1189,10 @@ console.log(generate(chain, 2, 60));
   FAILED FILE #20
 ################################################################################
   Path  : examples\Javascript\8_mandelbrot.sa
-  Error : ParseError at line 2:17: Unexpected token: ','
+  Error : ParseError: Unexpected token: ','
+  Line  : 2:17
+  Code  : const WIDTH = 72, HEIGHT = 32;
+                          ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1194,7 +1237,9 @@ console.log(render());
   FAILED FILE #21
 ################################################################################
   Path  : examples\Javascript\9_morse_code.sa
-  Error : LexError at line 1: Unexpected character: \
+  Error : LexError: Unexpected character: \
+  Line  : 1
+  Code  : // 4. Morse Code Translator (with audio beep sequences printed)
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1631,7 +1676,9 @@ if __name__ == "__main__":
   FAILED FILE #30
 ################################################################################
   Path  : examples\Python\Email Simulator.sa
-  Error : LexError at line 1: Unterminated string literal
+  Error : LexError: Unterminated string literal
+  Line  : 1
+  Code  : import datetime
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1796,7 +1843,10 @@ print(triple(4))
   FAILED FILE #32
 ################################################################################
   Path  : examples\Python\Hash Table.sa
-  Error : ParseError at line 9:21: Unexpected token: 'DEDENT'
+  Error : ParseError: Unexpected token: 'DEDENT'
+  Line  : 9:21
+  Code  :         return total
+                              ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1981,7 +2031,10 @@ if x > 0 print("positive")
   FAILED FILE #35
 ################################################################################
   Path  : examples\Python\Linked List.sa
-  Error : ParseError at line 20:44: Expected 'in' after 'not'
+  Error : ParseError: Expected 'in' after 'not'
+  Line  : 20:44
+  Code  :             while current_node.next is not None:
+                                                     ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2089,7 +2142,10 @@ if __name__ == "__main__":
   FAILED FILE #37
 ################################################################################
   Path  : examples\Python\Media Catalog.sa
-  Error : ParseError at line 65:59: Expected ']' (got 'is')
+  Error : ParseError: Expected ']' (got 'is')
+  Line  : 65:59
+  Code  :         return [item for item in self.items if type(item) is Movie]
+                                                                    ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2212,7 +2268,10 @@ except MediaError as e:
   FAILED FILE #38
 ################################################################################
   Path  : examples\Python\Medical Data Validator.sa
-  Error : ParseError at line 39:26: Expected parameter name
+  Error : ParseError: Expected parameter name
+  Line  : 39:26
+  Code  : def find_invalid_records(
+                                   ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2547,7 +2606,10 @@ print(pin_extractor([poem, poem2, poem3]))
   FAILED FILE #45
 ################################################################################
   Path  : examples\Python\Planet Class.sa
-  Error : ParseError at line 17:13: Expected ')' (got '+')
+  Error : ParseError: Expected ')' (got '+')
+  Line  : 17:13
+  Code  :             + self.name
+                      ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2722,7 +2784,10 @@ if __name__ == "__main__":
   FAILED FILE #48
 ################################################################################
   Path  : examples\Python\RPG Character.sa
-  Error : ParseError at line 19:20: Expected ')' (got 'is')
+  Error : ParseError: Expected ')' (got 'is')
+  Line  : 19:20
+  Code  :     if any(type(s) is not int for s in stats):
+                             ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2775,7 +2840,10 @@ print(create_character("ren", 4, 2, 1))
   FAILED FILE #49
 ################################################################################
   Path  : examples\Python\Salary Tracker.sa
-  Error : ParseError at line 7:5: Unexpected token: '}'
+  Error : ParseError: Unexpected token: '}'
+  Line  : 7:5
+  Code  :     }
+              ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2858,7 +2926,10 @@ print(f"New salary: ${charlie_brown.salary}")
   FAILED FILE #50
 ################################################################################
   Path  : examples\Python\Selection Sort Algorithm.sa
-  Error : ParseError at line 12:19: Unexpected token: ','
+  Error : ParseError: Unexpected token: ','
+  Line  : 12:19
+  Code  :             arr[i], arr[min_index] = arr[min_index], arr[i]
+                            ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2895,7 +2966,10 @@ if __name__ == "__main__":
   FAILED FILE #51
 ################################################################################
   Path  : examples\Python\Shortest Path Algorithm.sa
-  Error : ParseError at line 41:44: Expected 'else' in Python ternary expression (got 'is')
+  Error : ParseError: Expected 'else' in Python ternary expression (got 'is')
+  Line  : 41:44
+  Code  :     targets = [target_node] if target_node is not None else range(n)
+                                                     ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------

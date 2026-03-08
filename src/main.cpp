@@ -270,6 +270,8 @@ struct TestResult
     std::string path;   // display path (relative)
     std::string source; // full file source code
     std::string error;  // non-empty = failed
+    int line = 0;       // line number of the error (0 = unknown)
+    int col = 0;        // column (ParseError only)
 };
 
 // Redirect stdin to NUL / /dev/null so that any input() / cin call inside a
@@ -300,16 +302,11 @@ struct StreamGuard
     }
 };
 
-// Returns true if an error message is caused by empty/EOF input from stdin
-// being redirected to /dev/null during --test mode.  These are NOT real bugs
-// in the file — the file would work fine with real user input.
+// Returns true if an error was caused purely by input() returning "" because
+// stdin was redirected to /dev/null in --test mode.  These files are valid —
+// they just need real user input to run correctly.
 static bool isInputDrivenError(const std::string &msg)
 {
-    // Errors that only happen because input() returned "" or EOF:
-    // - Arithmetic/comparison on an empty string ("got string", "got nil")
-    //   when the file stored input() result in a variable and did math on it
-    // - IndexError from iterating over empty input
-    // - Any error that originates from an empty-string-to-number conversion
     if (msg.find("got string") != std::string::npos)
         return true;
     if (msg.find("got nil") != std::string::npos)
@@ -323,23 +320,49 @@ static bool isInputDrivenError(const std::string &msg)
     return false;
 }
 
+// Extract the Nth line (1-based) from source text. Returns "" if out of range.
+static std::string getSourceLine(const std::string &source, int lineNum)
+{
+    if (lineNum <= 0)
+        return "";
+    int cur = 1;
+    size_t i = 0;
+    while (i < source.size())
+    {
+        size_t end = source.find('\n', i);
+        if (end == std::string::npos)
+            end = source.size();
+        if (cur == lineNum)
+            return source.substr(i, end - i);
+        ++cur;
+        i = end + 1;
+    }
+    return "";
+}
+
 // Run one .sa file non-fatally.
 // Phase 1: Parse-only — catches all syntax errors.
 // Phase 2: Execute — catches runtime errors, but treats input()-driven
 //          failures as passes (the file is valid; it just needs real input).
-// Returns "" on success/pass, or an error description on genuine failure.
-static std::string testFile(const std::string &path)
+// Returns a TestResult; .error is "" on pass.
+static TestResult testFile(const std::string &path)
 {
+    TestResult res;
+    res.path = path;
+
     std::ifstream file(path);
     if (!file.is_open())
-        return "Cannot open file";
+    {
+        res.error = "Cannot open file";
+        return res;
+    }
 
     std::ostringstream ss;
     ss << file.rdbuf();
-    std::string source = ss.str();
+    res.source = ss.str();
+    const std::string &source = res.source;
 
     // ── Phase 1: Parse only (no execution, no I/O risk) ───────────────────
-    // Any ParseError here is a definite bug in the file.
     try
     {
         Lexer lexer(source);
@@ -350,24 +373,31 @@ static std::string testFile(const std::string &path)
     }
     catch (const ParseError &e)
     {
-        std::ostringstream out;
-        out << "ParseError at line " << e.line << ":" << e.col << ": " << e.what();
-        return out.str();
+        res.error = std::string("ParseError: ") + e.what();
+        res.line = e.line;
+        res.col = e.col;
+        return res;
     }
     catch (const std::exception &e)
     {
-        return std::string("LexError at line 1: ") + e.what();
+        res.error = std::string("LexError: ") + e.what();
+        res.line = 1;
+        return res;
     }
 
     // ── Phase 2: Execute with output swallowed ────────────────────────────
-    // Swallow any print/cout output so it doesn't pollute the test console.
-    // StreamGuard restores streams unconditionally on scope exit.
     std::ostringstream sink;
     StreamGuard guard(
         std::cout.rdbuf(sink.rdbuf()),
         std::cerr.rdbuf(sink.rdbuf()));
 
-    std::string result; // "" means pass
+    auto setErr = [&](const std::string &kind, const std::string &msg, int ln)
+    {
+        if (isInputDrivenError(msg))
+            return;
+        res.error = kind + ": " + msg;
+        res.line = ln;
+    };
 
     try
     {
@@ -382,7 +412,6 @@ static std::string testFile(const std::string &path)
         else
             interp.execute(*ast);
 
-        // Auto-call main() when present
         try
         {
             auto mainFn = interp.globals->get("main");
@@ -397,74 +426,41 @@ static std::string testFile(const std::string &path)
         }
         catch (const ReturnSignal &)
         {
-            // Normal return from main() — not an error.
         }
         catch (const NameError &e)
         {
             const std::string msg = e.what();
-            // Swallow only "no variable 'main'" — everything else is a real bug.
             if (msg.find("'main'") == std::string::npos &&
                 msg.find("\"main\"") == std::string::npos)
-            {
-                if (!isInputDrivenError(msg))
-                {
-                    std::ostringstream out;
-                    out << e.kind;
-                    if (e.line > 0)
-                        out << " at line " << e.line;
-                    out << ": " << msg;
-                    result = out.str();
-                }
-            }
+                setErr(e.kind, msg, e.line);
         }
         catch (const QuantumError &e)
         {
-            const std::string msg = e.what();
-            // If the error is purely because input() got "" from /dev/null,
-            // the file itself is fine — treat as pass.
-            if (!isInputDrivenError(msg))
-            {
-                std::ostringstream out;
-                out << e.kind;
-                if (e.line > 0)
-                    out << " at line " << e.line;
-                out << ": " << msg;
-                result = out.str();
-            }
+            setErr(e.kind, e.what(), e.line);
         }
         catch (const std::exception &e)
         {
             std::string msg = e.what();
             if (!isInputDrivenError(msg))
-                result = std::string("Fatal in main(): ") + msg;
+                res.error = "Fatal in main(): " + msg;
         }
     }
     catch (const QuantumError &e)
     {
-        const std::string msg = e.what();
-        if (!isInputDrivenError(msg))
-        {
-            std::ostringstream out;
-            out << e.kind;
-            if (e.line > 0)
-                out << " at line " << e.line;
-            out << ": " << msg;
-            result = out.str();
-        }
+        setErr(e.kind, e.what(), e.line);
     }
     catch (const std::exception &e)
     {
         std::string msg = e.what();
         if (!isInputDrivenError(msg))
-            result = std::string("Fatal: ") + msg;
+            res.error = "Fatal: " + msg;
     }
     catch (...)
     {
-        result = "Fatal: unknown exception";
+        res.error = "Fatal: unknown exception";
     }
 
-    // StreamGuard destructor restores cout/cerr here automatically.
-    return result;
+    return res;
 }
 
 // Recursively collect every .sa file under `dir`.
@@ -537,30 +533,54 @@ static int runTestExamples(const std::string &examplesDir)
         {
         }
 
-        // Read source now (before testFile swallows the stream)
-        std::string source;
-        {
-            std::ifstream sf(pathStr);
-            if (sf)
-            {
-                std::ostringstream tmp;
-                tmp << sf.rdbuf();
-                source = tmp.str();
-            }
-        }
+        TestResult tr = testFile(pathStr);
+        tr.path = displayPath;
+        // source was already read inside testFile; no need to re-read
 
-        std::string errorMsg = testFile(pathStr);
-
-        if (errorMsg.empty())
+        if (tr.error.empty())
         {
             std::cout << Colors::GREEN << "  ✓ " << Colors::RESET << displayPath << "\n";
             ++passed;
         }
         else
         {
-            std::cout << Colors::RED << "  ✗ " << Colors::RESET << displayPath
-                      << Colors::RED << "  →  " << errorMsg << Colors::RESET << "\n";
-            failures.push_back({displayPath, source, errorMsg});
+            // ── Console: file path on its own line, then indented error detail ──
+            std::cout << Colors::RED << "  ✗ " << Colors::RESET << displayPath << "\n";
+
+            if (tr.line > 0)
+                std::cout << "      " << Colors::YELLOW << "Line " << tr.line;
+            if (tr.col > 0)
+                std::cout << ":" << tr.col;
+            if (tr.line > 0)
+                std::cout << Colors::RESET << "  " << Colors::RED << tr.error << Colors::RESET << "\n";
+            else
+                std::cout << "      " << Colors::RED << tr.error << Colors::RESET << "\n";
+
+            // Show the offending source line with a caret pointer
+            if (tr.line > 0)
+            {
+                std::string srcLine = getSourceLine(tr.source, tr.line);
+                if (!srcLine.empty())
+                {
+                    // Trim leading whitespace for display but track indent
+                    size_t indent = 0;
+                    while (indent < srcLine.size() && (srcLine[indent] == ' ' || srcLine[indent] == '\t'))
+                        ++indent;
+                    std::string trimmed = srcLine.substr(indent);
+                    std::cout << "      " << Colors::WHITE << "| " << trimmed << Colors::RESET << "\n";
+                    if (tr.col > 0 && tr.col > (int)indent)
+                    {
+                        int caretPos = tr.col - (int)indent - 1;
+                        if (caretPos < 0)
+                            caretPos = 0;
+                        std::cout << "      " << Colors::RED << "| "
+                                  << std::string(caretPos, ' ') << "^"
+                                  << Colors::RESET << "\n";
+                    }
+                }
+            }
+
+            failures.push_back(tr);
         }
     }
 
@@ -629,6 +649,30 @@ static int runTestExamples(const std::string &examplesDir)
             report << "################################################################################\n";
             report << "  Path  : " << f.path << "\n";
             report << "  Error : " << f.error << "\n";
+            if (f.line > 0)
+            {
+                report << "  Line  : " << f.line;
+                if (f.col > 0)
+                    report << ":" << f.col;
+                report << "\n";
+                std::string srcLine = getSourceLine(f.source, f.line);
+                if (!srcLine.empty())
+                {
+                    report << "  Code  : " << srcLine << "\n";
+                    if (f.col > 0)
+                    {
+                        int spaces = (int)srcLine.size() - (int)srcLine.size(); // leading
+                        // find actual leading whitespace
+                        int lead = 0;
+                        while (lead < (int)srcLine.size() &&
+                               (srcLine[lead] == ' ' || srcLine[lead] == '\t'))
+                            ++lead;
+                        int caretPos = 10 + f.col - 1; // "  Code  : " is 10 chars
+                        report << std::string(caretPos, ' ') << "^\n";
+                        (void)spaces;
+                    }
+                }
+            }
             report << "--------------------------------------------------------------------------------\n";
             report << "  Source Code:\n";
             report << "--------------------------------------------------------------------------------\n";
