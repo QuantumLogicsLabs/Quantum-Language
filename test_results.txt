@@ -3,136 +3,15 @@
 ================================================================================
   Directory : C:\Programming\Quantum Language\examples
   Total     : 101
-  Passed    : 40
-  Failed    : 61
+  Passed    : 43
+  Failed    : 58
 ================================================================================
 
 ################################################################################
   FAILED FILE #1
 ################################################################################
-  Path  : examples\C++\OOPs\Lab 2\solution\LAB02-TASK06.sa
-  Error : IndexError: Array index out of range
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-#include <iostream>
-using namespace std;
-
-int main()
-{
-    int size;
-    cout << "Enter initial size: ";
-    cin >> size;
-
-    int* arr = new int[size];
-    int count = 0;
-
-    while (true)
-    {
-        int id;
-        cin >> id;
-
-        if (id == -1)
-            break;
-
-        if (count == size)
-        {
-            int* newArr = new int[size * 2];
-            for (int i = 0; i < size; i++)
-                newArr[i] = arr[i];
-
-            delete[] arr;
-            arr = newArr;
-            size *= 2;
-        }
-
-        arr[count++] = id;
-    }
-
-    cout << "Jellyfish IDs:\n";
-    for (int i = 0; i < count; i++)
-        cout << arr[i] << " ";
-
-    delete[] arr;
-    return 0;
-}
-################################################################################
-
-################################################################################
-  FAILED FILE #2
-################################################################################
-  Path  : examples\C++\OOPs\Lab 3\solution\LAB03-TASK04.sa
-  Error : ParseError: Expected '(' (got '*')
-  Line  : 12:29
-  Code  :     char **names = new char *[size];
-                                      ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-#include <iostream>
-using namespace std;
-int main()
-{
-
-    char *ptr = new char[100];
-    int size;
-    cout << "Enter total items: ";
-    cin >> size;
-    cin.ignore();
-    int *ptr1 = new int[size];
-    char **names = new char *[size];
-
-    for (int i = 0; i < size; i++)
-    {
-        int n = 0;
-        cout << "Enter name of item " << i + 1 << " : ";
-        do
-        {
-            cin.get(*(ptr + n));
-            if (*(ptr + n) == '\n')
-                break;
-            n++;
-        } while (true);
-
-        ptr1[i] = n;
-
-        names[i] = new char[n];
-        for (int j = 0; j < n; j++)
-        {
-            names[i][j] = ptr[j];
-        }
-    }
-
-    for (int i = 0; i < size; i++)
-    {
-        cout << "Name of item " << i + 1 << " is : ";
-        for (int j = 0; j < ptr1[i]; j++)
-        {
-            cout << names[i][j];
-        }
-        cout << endl;
-    }
-
-    for (int i = 0; i < size; i++)
-    {
-        delete[] names[i];
-    }
-    delete[] names;
-    delete[] ptr1;
-    delete[] ptr;
-
-    return 0;
-}
-################################################################################
-
-################################################################################
-  FAILED FILE #3
-################################################################################
   Path  : examples\C++\OOPs\Lab 3\solution\LAB03-TASK05.sa
-  Error : ParseError: Expected ')' (got 'locked')
-  Line  : 86:18
-  Code  :         if (auto locked = weakItem.lock())
-                           ^
+  Error : NameError: Undefined variable: 'make_unique'
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -284,7 +163,7 @@ int main()
 ################################################################################
 
 ################################################################################
-  FAILED FILE #4
+  FAILED FILE #2
 ################################################################################
   Path  : examples\IO Operations.sa
   Error : NameError: Undefined variable: 'print'
@@ -314,7 +193,7 @@ print("Pattern completed!")
 ################################################################################
 
 ################################################################################
-  FAILED FILE #5
+  FAILED FILE #3
 ################################################################################
   Path  : examples\Javascript\10_dungeon_generator.sa
   Error : ParseError: Unexpected token: ','
@@ -391,7 +270,7 @@ console.log(`\nRooms generated: ${rooms.length}`);
 ################################################################################
 
 ################################################################################
-  FAILED FILE #6
+  FAILED FILE #4
 ################################################################################
   Path  : examples\Javascript\11_binary_search_tree.sa
   Error : ParseError: Unexpected token: '}'
@@ -459,7 +338,7 @@ console.log("Post-Order (root last):", tree.postOrder().join(" → "));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #7
+  FAILED FILE #5
 ################################################################################
   Path  : examples\Javascript\12_math_interpreter.sa
   Error : LexError: Unexpected character: \
@@ -563,7 +442,7 @@ for (const line of programs) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #8
+  FAILED FILE #6
 ################################################################################
   Path  : examples\Javascript\13_solar_system.sa
   Error : ParseError: Unexpected token: ','
@@ -627,7 +506,7 @@ const interval = setInterval(() => {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #9
+  FAILED FILE #7
 ################################################################################
   Path  : examples\Javascript\14_dna_analyzer.sa
   Error : ParseError: Unexpected token: '/'
@@ -701,7 +580,7 @@ result.proteins.forEach((p, i) => console.log(`  Codon ${i + 1}: ${p}`));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #10
+  FAILED FILE #8
 ################################################################################
   Path  : examples\Javascript\15_astar_pathfinding.sa
   Error : ParseError: Unexpected token: ','
@@ -792,7 +671,7 @@ if (result) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #11
+  FAILED FILE #9
 ################################################################################
   Path  : examples\Javascript\1_password_generator.sa
   Error : ParseError: Expected member name (got 'from')
@@ -829,7 +708,7 @@ for (let i = 0; i < 5; i++) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #12
+  FAILED FILE #10
 ################################################################################
   Path  : examples\Javascript\2_caesar_cipher.sa
   Error : ParseError: Unexpected token: '/'
@@ -862,7 +741,7 @@ console.log("Match    :", message === decoded);
 ################################################################################
 
 ################################################################################
-  FAILED FILE #13
+  FAILED FILE #11
 ################################################################################
   Path  : examples\Javascript\3_countdown_timer.sa
   Error : NameError: Undefined variable: 'String'
@@ -896,7 +775,7 @@ countdown(10); // 10-second demo countdown
 ################################################################################
 
 ################################################################################
-  FAILED FILE #14
+  FAILED FILE #12
 ################################################################################
   Path  : examples\Javascript\4_stats_calculator.sa
   Error : ParseError: Unexpected token: '.'
@@ -940,7 +819,7 @@ console.log("Stats:", stats(dataset));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #15
+  FAILED FILE #13
 ################################################################################
   Path  : examples\Javascript\5_maze_generator.sa
   Error : ParseError: Expected member name (got 'from')
@@ -986,7 +865,7 @@ console.log(generateMaze(15, 31));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #16
+  FAILED FILE #14
 ################################################################################
   Path  : examples\Javascript\6_game_of_life.sa
   Error : ParseError: Unexpected token: ','
@@ -1033,7 +912,7 @@ const interval = setInterval(() => {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #17
+  FAILED FILE #15
 ################################################################################
   Path  : examples\Javascript\7_markov_chain.sa
   Error : LexError: Unexpected character: \
@@ -1085,7 +964,7 @@ console.log(generate(chain, 2, 60));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #18
+  FAILED FILE #16
 ################################################################################
   Path  : examples\Javascript\8_mandelbrot.sa
   Error : ParseError: Unexpected token: ','
@@ -1133,7 +1012,7 @@ console.log(render());
 ################################################################################
 
 ################################################################################
-  FAILED FILE #19
+  FAILED FILE #17
 ################################################################################
   Path  : examples\Javascript\9_morse_code.sa
   Error : LexError: Unexpected character: \
@@ -1179,7 +1058,7 @@ console.log(`Decoded  : ${decoded}`);
 ################################################################################
 
 ################################################################################
-  FAILED FILE #20
+  FAILED FILE #18
 ################################################################################
   Path  : examples\Javascript\Missing Letter Detector.sa
   Error : TypeError: No member 'length' on nil
@@ -1208,83 +1087,7 @@ console.log(fearNotLetter("abcdefghijklmnopqrstuvwxyz")); // undefined
 ################################################################################
 
 ################################################################################
-  FAILED FILE #21
-################################################################################
-  Path  : examples\Javascript\script.sa
-  Error : TypeError: No method 'deposit' on pointer
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// Define the BankAccount class
-class BankAccount {
-    constructor() {
-        this.balance = 0; // Initialize balance to 0
-        this.transactions = []; // Initialize empty transactions array
-    }
-
-    // Deposit method
-    deposit(amount) {
-        if (amount > 0) {
-            this.balance += amount;
-            this.transactions.push({ type: "deposit", amount: amount });
-            return `Successfully deposited $${amount}. New balance: $${this.balance}`;
-        } else {
-            return "Deposit amount must be greater than zero.";
-        }
-    }
-
-    // Withdraw method
-    withdraw(amount) {
-        if (amount > 0 && amount <= this.balance) {
-            this.balance -= amount;
-            this.transactions.push({ type: "withdraw", amount: amount });
-            return `Successfully withdrew $${amount}. New balance: $${this.balance}`;
-        } else {
-            return "Insufficient balance or invalid amount.";
-        }
-    }
-
-    // Check balance method
-    checkBalance() {
-        return `Current balance: $${this.balance}`;
-    }
-
-    // List all deposits
-    listAllDeposits() {
-        const deposits = this.transactions
-            .filter(tx => tx.type === "deposit")
-            .map(tx => tx.amount);
-        return `Deposits: ${deposits.join(",")}`;
-    }
-
-    // List all withdrawals
-    listAllWithdrawals() {
-        const withdrawals = this.transactions
-            .filter(tx => tx.type === "withdraw")
-            .map(tx => tx.amount);
-        return `Withdrawals: ${withdrawals.join(",")}`;
-    }
-}
-
-// Create an instance named myAccount
-const myAccount = new BankAccount();
-
-// Perform transactions to meet the requirements
-myAccount.deposit(150);    // Deposit 1
-myAccount.deposit(100);    // Deposit 2
-myAccount.withdraw(50);    // Withdraw 1
-myAccount.withdraw(30);    // Withdraw 2
-myAccount.deposit(50);     // Deposit 3 (extra transaction to have at least 5)
-
-// Testing outputs (optional console logs)
-// console.log(myAccount.checkBalance());           // Current balance: $220
-// console.log(myAccount.listAllDeposits());       // Deposits: 150,100,50
-// console.log(myAccount.listAllWithdrawals());    // Withdrawals: 50,30
-
-################################################################################
-
-################################################################################
-  FAILED FILE #22
+  FAILED FILE #19
 ################################################################################
   Path  : examples\Python\Adjacency List to Matrix Converter.sa
   Error : TypeError: len() not supported for type nil
@@ -1315,7 +1118,7 @@ adjacency_list_to_matrix({0: [1, 2], 1: [2], 2: [0, 3], 3: [2]})
 ################################################################################
 
 ################################################################################
-  FAILED FILE #23
+  FAILED FILE #20
 ################################################################################
   Path  : examples\Python\Binary Search Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -1349,7 +1152,7 @@ print(binary_search([1, 3, 5, 9, 14, 22], 10))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #24
+  FAILED FILE #21
 ################################################################################
   Path  : examples\Python\Breadth-First Search Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -1382,7 +1185,7 @@ print(gen_parentheses(3))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #25
+  FAILED FILE #22
 ################################################################################
   Path  : examples\Python\Caesar Cipher.sa
   Error : NameError: Undefined variable: 'print'
@@ -1425,7 +1228,7 @@ print(decrypted_text)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #26
+  FAILED FILE #23
 ################################################################################
   Path  : examples\Python\Depth-First Search Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -1473,7 +1276,7 @@ print(dfs([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 0]], 3))  # -> [3
 ################################################################################
 
 ################################################################################
-  FAILED FILE #27
+  FAILED FILE #24
 ################################################################################
   Path  : examples\Python\Discount Calculator.sa
   Error : NameError: Undefined variable: 'print'
@@ -1572,7 +1375,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #28
+  FAILED FILE #25
 ################################################################################
   Path  : examples\Python\Email Simulator.sa
   Error : LexError: Unterminated string literal
@@ -1690,7 +1493,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #29
+  FAILED FILE #26
 ################################################################################
   Path  : examples\Python\Functions.sa
   Error : NameError: Undefined variable: 'print'
@@ -1739,7 +1542,7 @@ print(triple(4))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #30
+  FAILED FILE #27
 ################################################################################
   Path  : examples\Python\Hash Table.sa
   Error : ParseError: Unexpected token: 'DEDENT'
@@ -1789,7 +1592,7 @@ class HashTable:
 ################################################################################
 
 ################################################################################
-  FAILED FILE #31
+  FAILED FILE #28
 ################################################################################
   Path  : examples\Python\ISBN Validator.sa
   Error : NameError: Undefined variable: 'print'
@@ -1880,7 +1683,7 @@ main()  # Commented out for automated tests
 ################################################################################
 
 ################################################################################
-  FAILED FILE #32
+  FAILED FILE #29
 ################################################################################
   Path  : examples\Python\IfElse.sa
   Error : NameError: Undefined variable: 'print'
@@ -1927,7 +1730,7 @@ if x > 0 print("positive")
 ################################################################################
 
 ################################################################################
-  FAILED FILE #33
+  FAILED FILE #30
 ################################################################################
   Path  : examples\Python\Linked List.sa
   Error : ParseError: Expected 'in' after 'not'
@@ -1992,7 +1795,7 @@ print(my_list.length)  # 1
 ################################################################################
 
 ################################################################################
-  FAILED FILE #34
+  FAILED FILE #31
 ################################################################################
   Path  : examples\Python\Luhn Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -2038,7 +1841,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #35
+  FAILED FILE #32
 ################################################################################
   Path  : examples\Python\Media Catalog.sa
   Error : ParseError: Expected ']' (got 'is')
@@ -2164,7 +1967,7 @@ except MediaError as e:
 ################################################################################
 
 ################################################################################
-  FAILED FILE #36
+  FAILED FILE #33
 ################################################################################
   Path  : examples\Python\Medical Data Validator.sa
   Error : ParseError: Expected parameter name
@@ -2279,7 +2082,7 @@ validate(medical_records)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #37
+  FAILED FILE #34
 ################################################################################
   Path  : examples\Python\Merge Sort Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -2332,7 +2135,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #38
+  FAILED FILE #35
 ################################################################################
   Path  : examples\Python\Musical Instrument Inventory.sa
   Error : NameError: Undefined variable: 'print'
@@ -2363,7 +2166,7 @@ print(instrument_2.get_fact())
 ################################################################################
 
 ################################################################################
-  FAILED FILE #39
+  FAILED FILE #36
 ################################################################################
   Path  : examples\Python\N-Queens Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -2412,7 +2215,7 @@ print(len(dfs_n_queens(8)))  # 92
 ################################################################################
 
 ################################################################################
-  FAILED FILE #40
+  FAILED FILE #37
 ################################################################################
   Path  : examples\Python\Nth Fibonacci Number Calculator.sa
   Error : NameError: Undefined variable: 'print'
@@ -2450,7 +2253,7 @@ print(fibonacci(15))  # 610
 ################################################################################
 
 ################################################################################
-  FAILED FILE #41
+  FAILED FILE #38
 ################################################################################
   Path  : examples\Python\Output.sa
   Error : NameError: Undefined variable: 'print'
@@ -2466,7 +2269,7 @@ cout << kutta << bandru << kaka; #C++
 ################################################################################
 
 ################################################################################
-  FAILED FILE #42
+  FAILED FILE #39
 ################################################################################
   Path  : examples\Python\Pin Extractor.sa
   Error : NameError: Undefined variable: 'print'
@@ -2502,7 +2305,7 @@ print(pin_extractor([poem, poem2, poem3]))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #43
+  FAILED FILE #40
 ################################################################################
   Path  : examples\Python\Planet Class.sa
   Error : ParseError: Expected ')' (got '+')
@@ -2551,7 +2354,7 @@ print(planet_3.orbit())
 ################################################################################
 
 ################################################################################
-  FAILED FILE #44
+  FAILED FILE #41
 ################################################################################
   Path  : examples\Python\Polygon Area Calculator.sa
   Error : NameError: Undefined variable: 'print'
@@ -2639,7 +2442,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #45
+  FAILED FILE #42
 ################################################################################
   Path  : examples\Python\Quicksort Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -2680,7 +2483,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #46
+  FAILED FILE #43
 ################################################################################
   Path  : examples\Python\RPG Character.sa
   Error : ParseError: Expected ')' (got 'is')
@@ -2736,7 +2539,7 @@ print(create_character("ren", 4, 2, 1))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #47
+  FAILED FILE #44
 ################################################################################
   Path  : examples\Python\Salary Tracker.sa
   Error : ParseError: Unexpected token: '}'
@@ -2822,7 +2625,7 @@ print(f"New salary: ${charlie_brown.salary}")
 ################################################################################
 
 ################################################################################
-  FAILED FILE #48
+  FAILED FILE #45
 ################################################################################
   Path  : examples\Python\Selection Sort Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -2859,7 +2662,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #49
+  FAILED FILE #46
 ################################################################################
   Path  : examples\Python\Shortest Path Algorithm.sa
   Error : ParseError: Expected 'else' in Python ternary expression (got 'is')
@@ -2926,7 +2729,7 @@ shortest_path(adj_matrix, 0, 5)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #50
+  FAILED FILE #47
 ################################################################################
   Path  : examples\Python\Tower of Hanoi Algorithm.sa
   Error : NameError: Undefined variable: 'print'
@@ -2974,7 +2777,7 @@ print(hanoi_solver(3))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #51
+  FAILED FILE #48
 ################################################################################
   Path  : examples\Python\oop_classes.sa
   Error : NameError: Undefined variable: 'print'
@@ -3164,7 +2967,7 @@ print("═══ All OOP tests passed! ═══")
 ################################################################################
 
 ################################################################################
-  FAILED FILE #52
+  FAILED FILE #49
 ################################################################################
   Path  : examples\Python\test2.sa
   Error : NameError: Undefined variable: 'self'
@@ -3176,7 +2979,7 @@ title = f"{self.name:*^30}\n"
 ################################################################################
 
 ################################################################################
-  FAILED FILE #53
+  FAILED FILE #50
 ################################################################################
   Path  : examples\Python\test_budget.sa
   Error : NameError: Undefined variable: 'print'
@@ -3193,7 +2996,7 @@ print(cat.name)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #54
+  FAILED FILE #51
 ################################################################################
   Path  : examples\Python\tutorial.sa
   Error : NameError: Undefined variable: 'print'
@@ -3212,7 +3015,7 @@ print("END");
 ################################################################################
 
 ################################################################################
-  FAILED FILE #55
+  FAILED FILE #52
 ################################################################################
   Path  : examples\advanced.sa
   Error : NameError: Undefined variable: 'print'
@@ -3383,7 +3186,7 @@ for _ in range(6) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #56
+  FAILED FILE #53
 ################################################################################
   Path  : examples\cybersec.sa
   Error : NameError: Undefined variable: 'print'
@@ -3591,7 +3394,7 @@ print("\n[Done] Quantum CyberSec Demo Complete")
 ################################################################################
 
 ################################################################################
-  FAILED FILE #57
+  FAILED FILE #54
 ################################################################################
   Path  : examples\demo.sa
   Error : NameError: Undefined variable: 'print'
@@ -3612,7 +3415,7 @@ test()
 ################################################################################
 
 ################################################################################
-  FAILED FILE #58
+  FAILED FILE #55
 ################################################################################
   Path  : examples\features.sa
   Error : NameError: Undefined variable: 'print'
@@ -3792,7 +3595,7 @@ print("Squares of 0-4:", sq)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #59
+  FAILED FILE #56
 ################################################################################
   Path  : examples\hello.sa
   Error : NameError: Undefined variable: 'print'
@@ -3812,7 +3615,7 @@ print("Welcome,", name, "| Quantum v" + str(version))
 ################################################################################
 
 ################################################################################
-  FAILED FILE #60
+  FAILED FILE #57
 ################################################################################
   Path  : examples\if-else.sa
   Error : NameError: Undefined variable: 'print'
@@ -3837,7 +3640,7 @@ print(ChuzaArmy(chuchu,kutta));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #61
+  FAILED FILE #58
 ################################################################################
   Path  : examples\simple.sa
   Error : NameError: Undefined variable: 'print'
