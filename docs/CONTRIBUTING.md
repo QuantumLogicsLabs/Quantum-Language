@@ -32,7 +32,7 @@ git checkout -b fix/your-bug-fix
 ```
 
 #### 4. Make Your Changes
-- Code changes
+- Code changes (primarily in `.cpp` and `.sa` files)
 - Documentation updates
 - Bug fixes
 - New features
@@ -69,7 +69,7 @@ git push origin feature/your-feature-name
 
 ### 🎯 Areas Where We Need Help
 
-#### 1. **Core Compiler Development**
+#### 1. **Core Compiler Development** (Focus on `.cpp` files)
 - Parser improvements
 - New language features
 - Performance optimizations
@@ -224,18 +224,3 @@ Contributors who make significant impacts will be featured in:
 - **Annual report** recognition
 
 ---
-
-## 🌈 Thank You!
-
-Every contribution matters! Whether it's:
-- A ⭐ **star** to show support
-- A 🐛 **bug report** to improve quality
-- A 💻 **code contribution** to add features
-- A 📚 **documentation improvement** to help others
-- A 🗣️ **community help** to support users
-
-**Thank you for being part of the Quantum Language community!** 🚀
-
----
-
-*"Quantum Language: Where Cybersecurity Meets Programming"* 🛡️💻
