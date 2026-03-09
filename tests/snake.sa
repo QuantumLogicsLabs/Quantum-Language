@@ -1,0 +1,203 @@
+/*
+ * ╔══════════════════════════════════════╗
+ *       TURBO SNAKE  — Console Game
+ *   Controls: WASD to move, Q to quit
+ *   Eat 🍎 to grow. Speed increases!
+ * ╚══════════════════════════════════════╝
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#ifdef _WIN32
+  #include <conio.h>
+  #include <windows.h>
+  #define CLEAR "cls"
+  #define SLEEP(ms) Sleep(ms)
+  #define KBHIT _kbhit
+  #define GETCH _getch
+#else
+  #include <unistd.h>
+  #include <termios.h>
+  #include <fcntl.h>
+  #define CLEAR "clear"
+  #define SLEEP(ms) usleep((ms)*1000)
+
+  int kbhit_unix(void) {
+      struct termios oldt, newt;
+      int ch, oldf;
+      tcgetattr(STDIN_FILENO, &oldt);
+      newt = oldt;
+      newt.c_lflag &= ~(ICANON | ECHO);
+      tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+      oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+      fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+      ch = getchar();
+      tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+      fcntl(STDIN_FILENO, F_SETFL, oldf);
+      if (ch != EOF) { ungetc(ch, stdin); return 1; }
+      return 0;
+  }
+  int getch_unix(void) {
+      struct termios oldt, newt;
+      tcgetattr(STDIN_FILENO, &oldt);
+      newt = oldt;
+      newt.c_lflag &= ~(ICANON | ECHO);
+      tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+      int ch = getchar();
+      tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+      return ch;
+  }
+  #define KBHIT kbhit_unix
+  #define GETCH  getch_unix
+#endif
+
+#define WIDTH  40
+#define HEIGHT 20
+#define MAX_LEN (WIDTH * HEIGHT)
+
+/* ── types ── */
+typedef struct { int x, y; } Point;
+typedef enum  { UP, DOWN, LEFT, RIGHT } Dir;
+
+/* ── globals ── */
+Point snake[MAX_LEN];
+int   snake_len;
+Dir   dir, next_dir;
+Point food;
+int   score, hi_score = 0;
+int   game_over;
+int   speed_ms;   /* delay in ms */
+
+/* ─────────────── helpers ─────────────── */
+void place_food(void) {
+    int ok;
+    do {
+        food.x = rand() % WIDTH;
+        food.y = rand() % HEIGHT;
+        ok = 1;
+        for (int i = 0; i < snake_len; i++)
+            if (snake[i].x == food.x && snake[i].y == food.y) { ok = 0; break; }
+    } while (!ok);
+}
+
+void init_game(void) {
+    snake_len = 3;
+    dir = next_dir = RIGHT;
+    score = 0;
+    speed_ms = 160;
+    game_over = 0;
+    /* start snake in the middle */
+    for (int i = 0; i < snake_len; i++) {
+        snake[i].x = WIDTH / 2 - i;
+        snake[i].y = HEIGHT / 2;
+    }
+    place_food();
+}
+
+/* ─────────────── draw ─────────────── */
+void draw(void) {
+    system(CLEAR);
+
+    /* top border */
+    printf("  +");
+    for (int x = 0; x < WIDTH; x++) printf("-");
+    printf("+\n");
+
+    /* grid */
+    for (int y = 0; y < HEIGHT; y++) {
+        printf("  |");
+        for (int x = 0; x < WIDTH; x++) {
+            /* check snake */
+            int is_snake = 0;
+            for (int i = 0; i < snake_len; i++) {
+                if (snake[i].x == x && snake[i].y == y) {
+                    printf(i == 0 ? "O" : "o");
+                    is_snake = 1;
+                    break;
+                }
+            }
+            if (!is_snake) {
+                if (x == food.x && y == food.y) printf("*");
+                else printf(" ");
+            }
+        }
+        printf("|\n");
+    }
+
+    /* bottom border */
+    printf("  +");
+    for (int x = 0; x < WIDTH; x++) printf("-");
+    printf("+\n");
+
+    printf("  Score: %d   Best: %d   Speed: %d   [WASD move | Q quit]\n",
+           score, hi_score, (int)((160.0 - speed_ms) / 10) + 1);
+}
+
+/* ─────────────── update ─────────────── */
+void update(void) {
+    /* read input */
+    if (KBHIT()) {
+        char c = (char)GETCH();
+        if ((c=='w'||c=='W') && dir!=DOWN)  next_dir=UP;
+        if ((c=='s'||c=='S') && dir!=UP)    next_dir=DOWN;
+        if ((c=='a'||c=='A') && dir!=RIGHT) next_dir=LEFT;
+        if ((c=='d'||c=='D') && dir!=LEFT)  next_dir=RIGHT;
+        if (c=='q'||c=='Q') { game_over=1; return; }
+    }
+    dir = next_dir;
+
+    /* compute new head */
+    Point head = snake[0];
+    if (dir==UP)    head.y--;
+    if (dir==DOWN)  head.y++;
+    if (dir==LEFT)  head.x--;
+    if (dir==RIGHT) head.x++;
+
+    /* wall collision */
+    if (head.x < 0 || head.x >= WIDTH || head.y < 0 || head.y >= HEIGHT) {
+        game_over = 1; return;
+    }
+    /* self collision */
+    for (int i = 0; i < snake_len - 1; i++)
+        if (snake[i].x == head.x && snake[i].y == head.y) { game_over = 1; return; }
+
+    /* shift body */
+    int ate = (head.x == food.x && head.y == food.y);
+    if (!ate) snake_len--;   /* pop tail unless eating */
+    memmove(&snake[1], &snake[0], snake_len * sizeof(Point));
+    snake[0] = head;
+    if (ate) snake_len++;
+
+    if (ate) {
+        score += 10;
+        if (score > hi_score) hi_score = score;
+        if (speed_ms > 60) speed_ms -= 5;   /* speed up */
+        place_food();
+    }
+}
+
+/* ─────────────── main ─────────────── */
+int main(void) {
+    srand((unsigned)time(NULL));
+
+    printf("\n  === TURBO SNAKE ===\n");
+    printf("  WASD = move  |  Q = quit\n");
+    printf("  Eat [*] to grow. Speed increases!\n\n");
+    printf("  Press ENTER to start...\n");
+    getchar();
+
+    init_game();
+
+    while (!game_over) {
+        draw();
+        SLEEP(speed_ms);
+        update();
+    }
+
+    draw();
+    printf("\n  *** GAME OVER ***  Final score: %d\n\n", score);
+    return 0;
+}

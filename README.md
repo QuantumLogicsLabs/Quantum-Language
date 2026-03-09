@@ -1,86 +1,112 @@
-<div align="center">
-<code>  ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗████████╗██╗   ██╗███╗   ███╗
- ██╔═══██╗██║   ██║██╔══██╗████╗  ██║╚══██╔══╝██║   ██║████╗ ████║
- ██║   ██║██║   ██║███████║██╔██╗ ██║   ██║   ██║   ██║██╔████╔██║
- ██║▄▄ ██║██║   ██║██╔══██║██║╚██╗██║   ██║   ██║   ██║██║╚██╔╝██║
- ╚██████╔╝╚██████╔╝██║  ██║██║ ╚████║   ██║   ╚██████╔╝██║ ╚═╝ ██║
-  ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚═╝     ╚═╝
-  
-</code>
+# QUANTUM LANGUAGE 🔐⚡
 
-**The Multi-Paradigm Scripting Language Built for Cybersecurity**
-
-[![Version](https://img.shields.io/badge/version-1.0.0-cyan)](https://github.com/SENODROOM/Quantum-Language/releases/tag/v1.0.0)
-[![Language](https://img.shields.io/badge/built%20with-C%2B%2B17-blue)](https://en.cppreference.com/w/cpp/17)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/SENODROOM/Quantum-Language)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release Date](https://img.shields.io/badge/released-Feb%202026-orange)](https://github.com/SENODROOM/Quantum-Language/releases)
-
-</div>
+### _Because Python was too easy and C++ wasn't painful enough_
 
 ---
 
-## What is Quantum?
+> **"Write once, run anywhere, hack everything."**
+> — Muhammad Saad Amin, definitely while wearing a hoodie in a dark room
 
-**Quantum** is a dynamically-typed, tree-walk interpreted scripting language built from scratch in C++17. It is designed to feel familiar to developers from any background — you can write it like Python, JavaScript, or C/C++ and it will just work.
+---
 
-Quantum files use the **`.sa`** extension and run with a single command:
+## What Is This?
 
-```bash
+Quantum is a **dynamically-typed scripting language** built from scratch in C++17 by someone who clearly had too much free time and not enough therapy.
+
+It uses the `.sa` file extension. We don't know what `.sa` stands for. **Saad Amin**? **Slightly Ambitious**? **Suspiciously Ambitious**? The world may never know.
+
+You run it like this:
+
+```
 quantum script.sa
 ```
 
-Quantum is purpose-built for **cybersecurity tooling**, featuring built-in functions for XOR operations, Base64 encoding, hex manipulation, and rot13 — with more cryptographic and network features planned.
+One command. Very cool. Very hacker. Much wow.
 
 ---
 
-## ✨ Key Features
+## Why Does This Exist?
 
-| Feature | Description |
-|---|---|
-| 🔀 **Multi-syntax** | Python, JavaScript, and C/C++ syntax work side by side |
-| 🧠 **Dynamic Typing** | No type declarations — variables infer types at runtime |
-| 🌳 **Tree-walk Interpreter** | Clean, hackable execution engine in C++17 |
-| 💻 **REPL Mode** | Interactive shell for quick experimentation |
-| 🔐 **Cybersecurity Builtins** | `xor_bytes`, `base64_encode`, `to_hex`, `from_hex`, `rot13` |
-| 📦 **Rich Standard Library** | Math, string, array, dict, I/O, time, random, encoding |
-| 🎯 **First-class Functions** | Closures, lambdas, arrow functions, anonymous functions |
-| 🏛️ **OOP** | Classes with inheritance and instance methods |
-| ⚙️ **Bitwise Operations** | Full `&`, `\|`, `^`, `~`, `<<`, `>>` support |
+Excellent question. Python exists. JavaScript exists. Bash exists. Rust exists. But apparently none of them were _cybersecurity-ready_ enough, so Saad said:
+
+> _"You know what the world needs? Another scripting language. But this one has `rot13`."_
+
+And thus, Quantum was born.
+
+---
+
+## ✨ "Features"
+
+| Feature                   | What They Said                                 | What It Means                                                    |
+| ------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| 🔀 Multi-syntax           | "Python, JS, and C++ syntax work side by side" | The parser is just vibing                                        |
+| 🧠 Dynamic Typing         | "No type declarations needed"                  | Types are just suggestions anyway                                |
+| 🌳 Tree-walk Interpreter  | "Clean, hackable engine"                       | It's slow but it's _artisanal_                                   |
+| 💻 REPL Mode              | "Interactive shell"                            | For when you want to feel like a hacker but only have 10 minutes |
+| 🔐 Cybersecurity Builtins | "`xor_bytes`, `rot13`"                         | ROT13. In 2026. Peak security.                                   |
+| 🎯 First-class Functions  | "Closures, lambdas, arrow functions"           | Basically just stole JS's homework                               |
+| 🏛️ OOP                    | "Classes with inheritance"                     | Because of course it has classes                                 |
+
+---
+
+## The Cybersecurity "Roadmap" 🗺️
+
+The README lists these as **reserved keywords for upcoming features**:
+
+- `scan` — _Network scanning_ (totally legal, we promise)
+- `payload` — _"Exploit payload construction"_ (sir this is a GitHub repo)
+- `encrypt` / `decrypt` — AES, RSA (coming soon™)
+- `hash` — MD5, SHA-256 (MD5 in 2026 👀)
+
+To be fair, `rot13` is already implemented, so the NSA is shaking.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone and build
+# Step 1: Question your life choices
 git clone https://github.com/SENODROOM/Quantum-Language.git
-cd Quantum-Language
+
+# Step 2: Build it (pray to CMake gods)
 mkdir build && cd build
 cmake ..
 cmake --build . --config Release
-```
 
-Then run your first script:
+# Step 3: Write your first script
+echo 'print("Hello from Quantum!")' > hello.sa
 
-```python
-# hello.sa
-print("Hello from Quantum!")
-```
-
-```bash
+# Step 4: Run it and feel like a hacker
 quantum hello.sa
 # → Hello from Quantum!
-```
 
-> See [SETUP.md](SETUP.md) for full installation instructions on all platforms.
+# Step 5: Realize Python would've taken 3 seconds
+```
 
 ---
 
-## Code Samples
+## Project Structure
 
-### XOR Encryption
-```python
+```
+Quantum-Language/
+├── src/
+│   ├── main.cpp          # Where dreams begin
+│   ├── Lexer.cpp         # Where strings go to die
+│   ├── Parser.cpp        # Where grammar goes to be questioned
+│   ├── Interpreter.cpp   # Where bugs are born
+│   └── Value.cpp         # Where types go to not exist
+├── examples/
+│   ├── Python/           # "See, it's just like Python!"
+│   ├── C/                # "See, it's just like C!"
+│   └── C++/              # "See, it's just like C++!" (It is not)
+└── README.md             # This document, but less funny
+```
+
+---
+
+## Sample Code: XOR Encryption
+
+```quantum
 fn xor_encrypt(text, key):
     return xor_bytes(text, key)
 
@@ -93,126 +119,66 @@ print("Encrypted:", to_hex(encrypted))
 print("Decrypted:", decrypted)
 ```
 
-### Higher-Order Functions (JavaScript style)
-```javascript
-const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-const evens   = numbers.filter(x => x % 2 == 0)
-const squares = evens.map(x => x * x)
-const total   = squares.reduce((acc, x) => acc + x, 0)
-
-console.log("Sum of squares of evens:", total)
-```
-
-### Classes and Inheritance (Python style)
-```python
-class Animal:
-    fn init(name, sound):
-        self.name = name
-        self.sound = sound
-
-    fn speak():
-        return self.name + " says " + self.sound
-
-class Dog extends Animal:
-    fn fetch(item):
-        return self.name + " fetches the " + item
-
-dog = Dog("Rex", "Woof")
-print(dog.speak())
-print(dog.fetch("ball"))
-```
+> XOR encryption. The cryptographic equivalent of a bike lock. But hey, it's _built-in_, so that's something.
 
 ---
 
-## Project Structure
+## Frequently Asked Questions
 
-```
-Quantum-Language/
-├── src/
-│   ├── main.cpp          # Entry point, REPL, file runner
-│   ├── Lexer.cpp         # Tokenizer with INDENT/DEDENT support
-│   ├── Parser.cpp        # Recursive descent parser
-│   ├── Interpreter.cpp   # Tree-walk interpreter + native functions
-│   ├── Value.cpp         # Value types and Environment
-│   └── Token.cpp         # Token utilities
-├── include/
-│   ├── AST.h             # AST node variant definitions
-│   ├── Error.h           # Error types + ANSI color codes
-│   ├── Interpreter.h
-│   ├── Lexer.h
-│   ├── Parser.h
-│   ├── Token.h
-│   └── Value.h
-├── examples/
-│   ├── Python/           # Python-syntax examples
-│   ├── C/                # C-syntax examples
-│   └── C++/              # C++-syntax examples
-├── docs/                 # Documentation
-├── design/               # Language design notes
-├── extensions/           # Editor/IDE extensions
-├── CMakeLists.txt
-├── build.bat             # Windows build script
-├── quantum.bat           # Windows runner script
-├── SETUP.md
-├── SYNTAX.md
-└── README.md
-```
+**Q: Is this production-ready?**
+A: It has 0 stars on GitHub. You decide.
+
+**Q: Should I use this for real cybersecurity work?**
+A: Please don't.
+
+**Q: Why `.sa` extension?**
+A: We asked. Saad didn't respond. We assume it's classified.
+
+**Q: Is `rot13` really a cybersecurity feature?**
+A: Julius Caesar used it. He was eventually stabbed by his friends, but that's unrelated.
+
+**Q: Will `payload` keyword actually help me build exploits?**
+A: It will help GitHub flag your repo.
 
 ---
 
 ## CLI Reference
 
 ```
-quantum <file.sa>          Run a Quantum script
-quantum                    Start interactive REPL
-quantum --check <file.sa>  Check syntax without executing
-quantum --version          Show version information
-quantum --help             Show usage help
-quantum --aura             Show project achievement board
+quantum <file.sa>          Run a Quantum script (and feel powerful)
+quantum                    Start REPL (pretend you're in Mr. Robot)
+quantum --check <file.sa>  Check syntax (it won't pass, but nice try)
+quantum --version          Confirm you installed this
+quantum --help             Admit you're lost
+quantum --aura             ??? (We're scared to run this)
 ```
 
 ---
 
-## Cybersecurity Roadmap
+## Conclusion
 
-The following keywords are **reserved** for upcoming features:
+Look — Quantum is actually impressive. Writing a scripting language from scratch in C++17 with a lexer, parser, tree-walk interpreter, REPL, OOP, closures, AND cybersecurity builtins is genuinely a lot of work. Most people can't do this.
 
-| Keyword | Planned Purpose |
-|---|---|
-| `scan` | Network port/host scanning |
-| `payload` | Exploit payload construction |
-| `encrypt` | Full cryptographic encryption (AES, RSA) |
-| `decrypt` | Cryptographic decryption |
-| `hash` | Hashing algorithms (MD5, SHA-256, SHA-512) |
+Saad built it anyway.
 
----
+Is it going to replace Python? No.
+Is it going to replace Bash? Absolutely not.
+Is `rot13` a serious cryptographic tool? I cannot stress this enough — no.
 
-## Documentation
+But did one person build an entire programming language from scratch and ship v1.0.0?
 
-- 📖 [SETUP.md](SETUP.md) — Installation guide for all platforms
-- 📝 [SYNTAX.md](SYNTAX.md) — Complete language syntax reference
-- 💡 [examples/](examples/) — Example programs in all syntax styles
+**Yes. Yes they did.**
 
----
-
-## Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting pull requests.
+Mad respect. 🫡
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) for details.
+MIT — meaning you can use this to do anything, including things that would make Saad regret open-sourcing it.
 
 ---
 
-## Built By
+_Built with love, C++17, and an alarming disregard for the existence of Python._
 
-**Muhammad Saad Amin** — Quantum Language v1.0.0  
-A cybersecurity-ready scripting language built from scratch in C++17.
-
-<div align="center">
-<sub>⚡ Quantum — Write once, run anywhere, hack everything.</sub>
-</div>
+**⚡ Quantum — Write once, run anywhere, hack everything (responsibly, please).**
