@@ -139,6 +139,7 @@ static void runFile(const std::string &path)
         std::exit(1);
     }
 
+    // CHECK FILE HAS .sa EXTENSION OR NOT:
     if (path.size() < 3 || path.substr(path.size() - 3) != ".sa")
     {
         std::cerr << Colors::YELLOW << "[Warning] " << Colors::RESET

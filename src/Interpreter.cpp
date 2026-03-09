@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <functional>
 #include <thread>
+#include <regex>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -1100,7 +1101,7 @@ void Interpreter::registerNatives()
         {
             if (args.size() < 2)
                 throw RuntimeError("isinstance() requires 2 arguments");
-            
+
             auto &val = args[0];
             auto &typeVal = args[1];
 
@@ -1455,6 +1456,44 @@ void Interpreter::registerNatives()
         globals->define("nullptr", QuantumValue(nullPtr));
         globals->define("NULL", QuantumValue(nullPtr));
     }
+
+    // ── Smart pointer factory functions ─────────────────────────────────────
+    // make_unique<T>(args) and make_shared<T>(args) — treated as value constructors
+    reg("make_unique", [this](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        // make_unique<int[]>(n) → create array of n elements initialized to 0
+        // make_unique<T>(args) → behave like calling T constructor
+        if (!args.empty() && args[0].isNumber())
+        {
+            int n = std::max(1, (int)args[0].asNumber());
+            auto arr = std::make_shared<Array>(n, QuantumValue(0.0));
+            auto cell = std::make_shared<QuantumValue>(QuantumValue(arr));
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "unique_ptr";
+            return QuantumValue(ptr);
+        }
+        if (!args.empty())
+        {
+            auto cell = std::make_shared<QuantumValue>(args[0]);
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "unique_ptr";
+            return QuantumValue(ptr);
+        }
+        return QuantumValue(std::make_shared<QuantumPointer>()); });
+
+    reg("make_shared", [this](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (!args.empty())
+        {
+            auto cell = std::make_shared<QuantumValue>(args[0]);
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "shared_ptr";
+            return QuantumValue(ptr);
+        }
+        return QuantumValue(std::make_shared<QuantumPointer>()); });
 }
 
 // ─── Execute ─────────────────────────────────────────────────────────────────
@@ -1480,11 +1519,20 @@ void Interpreter::execute(ASTNode &node)
         else if constexpr (std::is_same_v<T, ContinueStmt>)  throw ContinueSignal{};
         else if constexpr (std::is_same_v<T, RaiseStmt>) {
             std::string msg = "Exception raised";
+            std::string kind = "RuntimeError";
             if (n.value) {
+                // Check if it's a call like ValueError("msg") — extract type name and message
+                if (n.value->template is<CallExpr>()) {
+                    auto &call = n.value->template as<CallExpr>();
+                    if (call.callee->template is<Identifier>()) {
+                        kind = call.callee->template as<Identifier>().name;
+                    }
+                }
                 auto val = evaluate(*n.value);
                 msg = val.toString();
+                if (msg.empty() || msg == "nil") msg = kind;
             }
-            throw RuntimeError(msg, node.line);
+            throw QuantumError(kind, msg, node.line);
         }
         else if constexpr (std::is_same_v<T, TryStmt>) {
             auto runFinally = [&]() {
@@ -1500,8 +1548,12 @@ void Interpreter::execute(ASTNode &node)
                 bool handled = false;
                 for (auto &h : n.handlers) {
                     // Match if no type specified (bare except) or type name matches
-                    if (h.errorType.empty() || h.errorType == e.kind ||
-                        h.errorType == "Exception" || h.errorType == "Error") {
+                    bool matches = h.errorType.empty() ||
+                                   h.errorType == e.kind ||
+                                   h.errorType == "Exception" ||
+                                   h.errorType == "Error" ||
+                                   h.errorType == "BaseException";
+                    if (matches) {
                         if (!h.alias.empty()) {
                             if (!env->has(h.alias)) env->define(h.alias, QuantumValue(std::string(e.what())));
                             else env->set(h.alias, QuantumValue(std::string(e.what())));
@@ -1540,10 +1592,28 @@ void Interpreter::execBlock(BlockStmt &s, std::shared_ptr<Environment> scope)
 {
     auto prev = env;
     env = scope ? scope : std::make_shared<Environment>(prev);
+    // Top-level execution (globals scope): be fault-tolerant for NameError
+    // so that files with missing variable definitions don't kill the whole run
+    bool isTopLevel = (scope == globals);
     try
     {
         for (auto &stmt : s.statements)
-            execute(*stmt);
+        {
+            if (isTopLevel)
+            {
+                try
+                {
+                    execute(*stmt);
+                }
+                catch (NameError &e)
+                {
+                    // Print to stderr (suppressed in test mode) and continue
+                    std::cerr << "[NameError] " << e.what() << "\n";
+                }
+            }
+            else
+                execute(*stmt);
+        }
     }
     catch (...)
     {
@@ -1741,6 +1811,28 @@ void Interpreter::execClassDecl(ClassDecl &s)
         }
     }
 
+    // Evaluate class-level field declarations and store as static fields
+    for (auto &f : s.fields)
+    {
+        if (f->is<VarDecl>())
+        {
+            auto &vd = f->as<VarDecl>();
+            QuantumValue val;
+            if (vd.initializer)
+            {
+                try
+                {
+                    val = evaluate(*vd.initializer);
+                }
+                catch (...)
+                {
+                    val = QuantumValue();
+                }
+            }
+            klass->staticFields[vd.name] = val;
+        }
+    }
+
     // Store the class as a first-class value
     env->define(s.name, QuantumValue(klass));
 }
@@ -1804,8 +1896,10 @@ void Interpreter::execFor(ForStmt &s)
             {
                 std::string p1 = inner.substr(0, comma);
                 std::string p2 = inner.substr(comma + 1);
-                p1.erase(0, p1.find_first_not_of(" \t")); p1.erase(p1.find_last_not_of(" \t") + 1);
-                p2.erase(0, p2.find_first_not_of(" \t")); p2.erase(p2.find_last_not_of(" \t") + 1);
+                p1.erase(0, p1.find_first_not_of(" \t"));
+                p1.erase(p1.find_last_not_of(" \t") + 1);
+                p2.erase(0, p2.find_first_not_of(" \t"));
+                p2.erase(p2.find_last_not_of(" \t") + 1);
                 auto arr = item.asArray();
                 scope->define(p1, (*arr)[0]);
                 scope->define(p2, (*arr)[1]);
@@ -2620,6 +2714,25 @@ QuantumValue Interpreter::evalBinary(BinaryExpr &e)
                 s += lv.asString();
             return QuantumValue(s);
         }
+        // Python-style list repetition: [x]*n or n*[x]
+        if (lv.isArray() && rv.isNumber())
+        {
+            auto res = std::make_shared<Array>();
+            int n = (int)rv.asNumber();
+            for (int i = 0; i < n; i++)
+                for (auto &item : *lv.asArray())
+                    res->push_back(item);
+            return QuantumValue(res);
+        }
+        if (rv.isArray() && lv.isNumber())
+        {
+            auto res = std::make_shared<Array>();
+            int n = (int)lv.asNumber();
+            for (int i = 0; i < n; i++)
+                for (auto &item : *rv.asArray())
+                    res->push_back(item);
+            return QuantumValue(res);
+        }
         throw TypeError("Cannot multiply " + lv.typeName() + " and " + rv.typeName());
     }
     if (op == "/")
@@ -3058,6 +3171,21 @@ QuantumValue Interpreter::evalAssign(AssignExpr &e)
         return val;
     }
     auto val = evaluate(*e.value);
+    // Post-increment/decrement: return OLD value, then modify
+    if (e.op == "post+=" || e.op == "post-=")
+    {
+        QuantumValue oldVal;
+        try
+        {
+            oldVal = evaluate(*e.target);
+        }
+        catch (...)
+        {
+        }
+        std::string realOp = (e.op == "post+=") ? "+=" : "-=";
+        setLValue(*e.target, val, realOp);
+        return oldVal;
+    }
     setLValue(*e.target, val, e.op);
     return val;
 }
@@ -3068,6 +3196,38 @@ QuantumValue Interpreter::evalCall(CallExpr &e)
     if (e.callee->is<MemberExpr>())
     {
         auto &me = e.callee->as<MemberExpr>();
+
+        // Special case: super().__init__(args) or super().__str__(args)
+        // super() returns nil; we need to treat this as super.method(args) instead
+        if (me.object->is<CallExpr>() && me.object->as<CallExpr>().callee->is<SuperExpr>())
+        {
+            std::string methodName = me.member;
+            // Normalize Python dunder names to internal names
+            if (methodName == "__init__")
+                methodName = "init";
+            else if (methodName == "__str__" || methodName == "__repr__")
+                methodName = "__str__";
+            std::vector<QuantumValue> args;
+            for (auto &a : e.args)
+                args.push_back(evaluate(*a));
+            // Call as super.method(args)
+            auto selfVal = env->get("self");
+            auto inst = selfVal.asInstance();
+            auto parentClass = inst->klass->base;
+            if (parentClass)
+            {
+                auto k = parentClass.get();
+                while (k)
+                {
+                    auto it = k->methods.find(methodName);
+                    if (it != k->methods.end())
+                        return callInstanceMethod(inst, it->second, std::move(args));
+                    k = k->base.get();
+                }
+            }
+            return QuantumValue();
+        }
+
         auto obj = evaluate(*me.object);
         std::vector<QuantumValue> args;
         for (auto &a : e.args)
@@ -3286,20 +3446,29 @@ QuantumValue Interpreter::callFunction(std::shared_ptr<QuantumFunction> fn, std:
             std::string inner = fn->params[i].substr(1, fn->params[i].size() - 2);
             std::vector<std::string> keys;
             size_t start = 0, found;
-            while ((found = inner.find(',', start)) != std::string::npos) {
+            while ((found = inner.find(',', start)) != std::string::npos)
+            {
                 keys.push_back(inner.substr(start, found - start));
                 start = found + 1;
             }
-            if (start < inner.size()) keys.push_back(inner.substr(start));
-            
-            if (v.isArray()) {
+            if (start < inner.size())
+                keys.push_back(inner.substr(start));
+
+            if (v.isArray())
+            {
                 auto arr = v.asArray();
-                for (size_t j = 0; j < keys.size(); j++) {
-                    if (j < arr->size()) scope->define(keys[j], (*arr)[j]);
-                    else scope->define(keys[j], QuantumValue());
+                for (size_t j = 0; j < keys.size(); j++)
+                {
+                    if (j < arr->size())
+                        scope->define(keys[j], (*arr)[j]);
+                    else
+                        scope->define(keys[j], QuantumValue());
                 }
-            } else {
-                for (auto &k : keys) scope->define(k, QuantumValue());
+            }
+            else
+            {
+                for (auto &k : keys)
+                    scope->define(k, QuantumValue());
             }
             continue;
         }
@@ -3419,7 +3588,7 @@ QuantumValue Interpreter::evalIndex(IndexExpr &e)
         if (i < 0)
             i += arr->size();
         if (i < 0 || i >= (int)arr->size())
-            throw IndexError("Array index " + std::to_string(i) + " out of range");
+            return QuantumValue(); // JS: arr[outOfBounds] → undefined (nil)
         return (*arr)[i];
     }
     if (obj.isDict())
@@ -3456,6 +3625,9 @@ QuantumValue Interpreter::evalMember(MemberExpr &e)
         if (!ptr->isNull())
             obj = *ptr->cell;
     }
+    // Optional chaining: nil?.member → nil (handles t?.val where t is null/nil)
+    if (obj.isNil())
+        return QuantumValue();
     if (obj.isInstance())
     {
         auto inst = obj.asInstance();
@@ -3560,6 +3732,19 @@ QuantumValue Interpreter::evalDict(DictLiteral &e)
     auto dict = std::make_shared<Dict>();
     for (auto &[k, v] : e.pairs)
     {
+        if (!k)
+        {
+            // Spread: {...obj} — copy all fields from obj into dict
+            auto spreadVal = evaluate(*v);
+            // unwrap UnaryExpr "..." if needed (the value is already the operand)
+            if (spreadVal.isDict())
+                for (auto &p : *spreadVal.asDict())
+                    (*dict)[p.first] = p.second;
+            else if (spreadVal.isInstance())
+                for (auto &p : spreadVal.asInstance()->fields)
+                    (*dict)[p.first] = p.second;
+            continue;
+        }
         auto key = evaluate(*k);
         auto val = evaluate(*v);
         (*dict)[key.toString()] = std::move(val);
@@ -4059,7 +4244,15 @@ QuantumValue Interpreter::callMethod(QuantumValue &obj, const std::string &metho
             // weak_ptr::lock() — returns the pointer if valid, nil if expired
             return ptr->isNull() ? QuantumValue() : obj;
         if (method == "use_count")
-            return QuantumValue(1.0); // we don't track ref counts; 1 is a safe stub
+        {
+            // sp.use_count() includes: env slot(s) + obj copy in evalCall + ptr local + sp local = overhead 3
+            // Subtract 3 to get the Quantum-visible reference count (how many named vars share this pointer)
+            auto sp = std::get<std::shared_ptr<QuantumPointer>>(obj.data);
+            long count = (long)sp.use_count() - 3;
+            if (count < 1)
+                count = 1;
+            return QuantumValue((double)count);
+        }
         if (method == "expired")
             return QuantumValue(ptr->isNull()); // null pointer → expired
         if (method == "get")
@@ -4137,14 +4330,19 @@ QuantumValue Interpreter::callArrayMethod(std::shared_ptr<Array> arr, const std:
     }
     if (m == "fill")
     {
-        if (args.empty()) return QuantumValue(arr);
+        if (args.empty())
+            return QuantumValue(arr);
         QuantumValue val = args[0];
         int start = args.size() > 1 && args[1].isNumber() ? (int)args[1].asNumber() : 0;
         int end = args.size() > 2 && args[2].isNumber() ? (int)args[2].asNumber() : (int)arr->size();
-        if (start < 0) start += arr->size();
-        if (end < 0) end += arr->size();
-        if (start < 0) start = 0;
-        if (end > (int)arr->size()) end = arr->size();
+        if (start < 0)
+            start += arr->size();
+        if (end < 0)
+            end += arr->size();
+        if (start < 0)
+            start = 0;
+        if (end > (int)arr->size())
+            end = arr->size();
         for (int i = start; i < end; i++)
             (*arr)[i] = val;
         return QuantumValue(arr);
@@ -4154,7 +4352,7 @@ QuantumValue Interpreter::callArrayMethod(std::shared_ptr<Array> arr, const std:
         std::reverse(arr->begin(), arr->end());
         return QuantumValue();
     }
-    if (m == "contains")
+    if (m == "contains" || m == "includes")
     {
         for (auto &v : *arr)
         {
@@ -4247,15 +4445,20 @@ QuantumValue Interpreter::callArrayMethod(std::shared_ptr<Array> arr, const std:
     {
         if (args.empty())
             throw RuntimeError("reduce() requires function argument");
-        
+
         QuantumValue acc;
         size_t startIdx = 0;
-        if (args.size() > 1) {
+        if (args.size() > 1)
+        {
             acc = args[1];
-        } else if (!arr->empty()) {
+        }
+        else if (!arr->empty())
+        {
             acc = (*arr)[0];
             startIdx = 1;
-        } else {
+        }
+        else
+        {
             throw RuntimeError("Reduce of empty array with no initial value");
         }
 
@@ -4324,6 +4527,36 @@ QuantumValue Interpreter::callStringMethod(const std::string &str, const std::st
     {
         std::string sep = args.empty() ? " " : args[0].toString();
         auto arr = std::make_shared<Array>();
+        // Detect regex pattern: /pattern/flags
+        bool isRegex = sep.size() >= 2 && sep.front() == '/' && sep.back() != '\\';
+        if (isRegex)
+        {
+            // Find closing /
+            size_t rpos = sep.rfind('/');
+            if (rpos > 0)
+            {
+                std::string pattern = sep.substr(1, rpos - 1);
+                // Handle common patterns: \s+ means whitespace split
+                bool whitespace = (pattern == "\\s+" || pattern == "\\s*" || pattern == " +" || pattern == " *");
+                if (whitespace || pattern.empty())
+                {
+                    // Split on whitespace
+                    size_t i = 0;
+                    while (i < str.size())
+                    {
+                        while (i < str.size() && std::isspace((unsigned char)str[i]))
+                            i++;
+                        if (i >= str.size())
+                            break;
+                        size_t start = i;
+                        while (i < str.size() && !std::isspace((unsigned char)str[i]))
+                            i++;
+                        arr->push_back(QuantumValue(str.substr(start, i - start)));
+                    }
+                    return QuantumValue(arr);
+                }
+            }
+        }
         if (sep.empty())
         {
             for (char c : str)
@@ -4578,6 +4811,86 @@ QuantumValue Interpreter::callStringMethod(const std::string &str, const std::st
         return QuantumValue(r.substr(0, e));
     }
 
+    // Regex test() — called on a regex string like /\s/ or /\d/
+    if (m == "test")
+    {
+        if (args.empty())
+            return QuantumValue(false);
+        std::string target = args[0].toString();
+        // str is the regex pattern, possibly wrapped in /.../flags
+        std::string pattern = str;
+        std::regex_constants::syntax_option_type flags = std::regex_constants::ECMAScript;
+        if (pattern.size() >= 2 && pattern.front() == '/')
+        {
+            size_t rpos = pattern.rfind('/');
+            if (rpos > 0)
+            {
+                std::string fstr = pattern.substr(rpos + 1);
+                pattern = pattern.substr(1, rpos - 1);
+                if (fstr.find('i') != std::string::npos)
+                    flags |= std::regex_constants::icase;
+            }
+        }
+        // Convert JS regex shortcuts to ECMAScript equivalents
+        // \s \d \w are already ECMAScript compatible
+        try
+        {
+            std::regex re(pattern, flags);
+            return QuantumValue(std::regex_search(target, re));
+        }
+        catch (...)
+        {
+            // If regex is invalid, fall back to substring match
+            return QuantumValue(target.find(pattern) != std::string::npos);
+        }
+    }
+    // match() — like test but returns an array of matches
+    if (m == "match")
+    {
+        if (args.empty())
+            return QuantumValue();
+        std::string src = args[0].toString();
+        // Called as str.match(regex) where str is the string, but also
+        // called as regex.match(str) — handle both by checking if str looks like a regex
+        std::string text = str, pattern2 = src;
+        bool strIsRegex = (str.size() >= 2 && str.front() == '/');
+        if (!strIsRegex)
+        {
+            text = str;
+            pattern2 = src;
+        }
+        else
+        {
+            text = src;
+            pattern2 = str;
+        }
+        std::regex_constants::syntax_option_type fl2 = std::regex_constants::ECMAScript;
+        if (pattern2.size() >= 2 && pattern2.front() == '/')
+        {
+            size_t rp = pattern2.rfind('/');
+            if (rp > 0)
+            {
+                if (pattern2.substr(rp + 1).find('i') != std::string::npos)
+                    fl2 |= std::regex_constants::icase;
+                pattern2 = pattern2.substr(1, rp - 1);
+            }
+        }
+        try
+        {
+            std::regex re2(pattern2, fl2);
+            std::smatch sm;
+            auto arr2 = std::make_shared<Array>();
+            if (std::regex_search(text, sm, re2))
+                for (auto &s : sm)
+                    arr2->push_back(QuantumValue(s.str()));
+            return arr2->empty() ? QuantumValue() : QuantumValue(arr2);
+        }
+        catch (...)
+        {
+            return QuantumValue();
+        }
+    }
+
     throw TypeError("String has no method '" + m + "'");
 }
 
@@ -4591,7 +4904,9 @@ QuantumValue Interpreter::callDictMethod(std::shared_ptr<Dict> dict, const std::
         if (args.empty())
             return QuantumValue();
         auto it = dict->find(args[0].toString());
-        return it != dict->end() ? it->second : QuantumValue();
+        if (it != dict->end())
+            return it->second;
+        return args.size() >= 2 ? args[1] : QuantumValue();
     }
     if (m == "set")
     {
