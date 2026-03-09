@@ -1044,7 +1044,18 @@ ASTNodePtr Parser::parseClassDecl()
                 continue;
             }
 
-            auto isMethodName = [&](TokenType t) {
+            // Handle nested class definitions: class Node: ...
+            if (check(TokenType::CLASS))
+            {
+                consume(); // eat 'class'
+                // Parse and discard the nested class (not currently supported, but consume cleanly)
+                parseClassDecl();
+                skipNewlines();
+                continue;
+            }
+
+            auto isMethodName = [&](TokenType t)
+            {
                 return t >= TokenType::IDENTIFIER && t <= TokenType::HASH;
             };
 
@@ -1194,6 +1205,30 @@ ASTNodePtr Parser::parseClassDecl()
             // Check for method vs field: if next token is NOT '(' it might be a field
             if (!check(TokenType::LPAREN))
             {
+                // If followed by '=' or ':' it's a class-level attribute assignment
+                if (check(TokenType::ASSIGN) || check(TokenType::COLON))
+                {
+                    if (check(TokenType::COLON))
+                        consume(); // eat optional type hint colon (skip type)
+                    if (check(TokenType::ASSIGN))
+                        consume(); // eat '='
+                    skipNewlines();
+                    ASTNodePtr init;
+                    try
+                    {
+                        init = parseExpr();
+                    }
+                    catch (...)
+                    {
+                    }
+                    auto fld = std::make_unique<ASTNode>(
+                        VarDecl{false, methodName, std::move(init), ""}, ln);
+                    cd.fields.push_back(std::move(fld));
+                    while (check(TokenType::NEWLINE) || check(TokenType::SEMICOLON))
+                        consume();
+                    skipNewlines();
+                    continue;
+                }
                 // Skip the rest of the line as a field/statement we can't parse
                 while (!atEnd() && !check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON) && !check(TokenType::RBRACE))
                     consume();
@@ -1404,8 +1439,10 @@ ASTNodePtr Parser::parseForStmt()
                     la++;
                     while (la < tokens.size() && depth > 0)
                     {
-                        if (tokens[la].type == TokenType::LBRACKET) depth++;
-                        else if (tokens[la].type == TokenType::RBRACKET) depth--;
+                        if (tokens[la].type == TokenType::LBRACKET)
+                            depth++;
+                        else if (tokens[la].type == TokenType::RBRACKET)
+                            depth--;
                         la++;
                     }
                 }
@@ -1429,7 +1466,7 @@ ASTNodePtr Parser::parseForStmt()
                         {
                             forOfVar = consume().value; // var name
                         }
-                        consume();                  // eat 'in' or 'of'
+                        consume(); // eat 'in' or 'of'
                         auto iterable = parseExpr();
                         expect(TokenType::RPAREN, "Expected ')'");
                         match(TokenType::COLON);
@@ -2046,8 +2083,11 @@ ASTNodePtr Parser::parseAssignment()
 ASTNodePtr Parser::parseOr()
 {
     auto left = parseAnd();
-    while (check(TokenType::OR) || check(TokenType::OR_OR))
+    while (true)
     {
+        skipNewlines();
+        if (!check(TokenType::OR) && !check(TokenType::OR_OR))
+            break;
         int ln = current().line;
         consume(); // eat 'or' or '||'
         auto right = parseAnd();
@@ -2059,8 +2099,11 @@ ASTNodePtr Parser::parseOr()
 ASTNodePtr Parser::parseAnd()
 {
     auto left = parseBitwise();
-    while (check(TokenType::AND) || check(TokenType::AND_AND))
+    while (true)
     {
+        skipNewlines();
+        if (!check(TokenType::AND) && !check(TokenType::AND_AND))
+            break;
         int ln = current().line;
         consume(); // eat 'and' or '&&'
         auto right = parseBitwise();
@@ -2328,13 +2371,13 @@ ASTNodePtr Parser::parsePostfix()
         {
             consume();
             auto one = std::make_unique<ASTNode>(NumberLiteral{1.0}, ln);
-            expr = std::make_unique<ASTNode>(AssignExpr{"+=", std::move(expr), std::move(one)}, ln);
+            expr = std::make_unique<ASTNode>(AssignExpr{"post+=", std::move(expr), std::move(one)}, ln);
         }
         else if (check(TokenType::MINUS_MINUS))
         {
             consume();
             auto one = std::make_unique<ASTNode>(NumberLiteral{1.0}, ln);
-            expr = std::make_unique<ASTNode>(AssignExpr{"-=", std::move(expr), std::move(one)}, ln);
+            expr = std::make_unique<ASTNode>(AssignExpr{"post-=", std::move(expr), std::move(one)}, ln);
         }
         else if (check(TokenType::LPAREN))
         {
@@ -2567,8 +2610,10 @@ ASTNodePtr Parser::parsePrimary()
             int depth = 1;
             while (p < tokens.size() && depth > 0)
             {
-                if (tokens[p].type == TokenType::LPAREN) depth++;
-                else if (tokens[p].type == TokenType::RPAREN) depth--;
+                if (tokens[p].type == TokenType::LPAREN)
+                    depth++;
+                else if (tokens[p].type == TokenType::RPAREN)
+                    depth--;
                 p++;
             }
             if (depth == 0)
@@ -2587,7 +2632,7 @@ ASTNodePtr Parser::parsePrimary()
             {
                 if (isCTypeKeyword(current().type))
                     consume(); // skip type hints
-                
+
                 if (check(TokenType::LBRACKET))
                 {
                     std::string paramName = "[";
@@ -2895,6 +2940,21 @@ ASTNodePtr Parser::parseDictLiteral()
     DictLiteral dict;
     while (!check(TokenType::RBRACE) && !atEnd())
     {
+        // Spread: {...obj, key: val}
+        if (check(TokenType::IDENTIFIER) && current().value == "...")
+        {
+            consume(); // eat "..."
+            auto spreadExpr = parseUnary();
+            // We'll use a special sentinel: key = nullptr means spread
+            dict.pairs.emplace_back(nullptr, std::move(spreadExpr));
+            skipNewlines();
+            if (!match(TokenType::COMMA))
+                break;
+            skipNewlines();
+            if (check(TokenType::RBRACE))
+                break;
+            continue;
+        }
         // Key: accept quoted string, number, bare identifier, or type keyword
         // e.g.  "name": ...   or   firstName: ...   or   42: ...
         ASTNodePtr key;
@@ -2903,8 +2963,9 @@ ASTNodePtr Parser::parseDictLiteral()
         {
             // Peek ahead — if next token after this is COLON, treat as bare string key
             size_t la = pos + 1;
-            while (la < tokens.size() && tokens[la].type == TokenType::NEWLINE) la++;
-            
+            while (la < tokens.size() && tokens[la].type == TokenType::NEWLINE)
+                la++;
+
             if (la < tokens.size() && tokens[la].type == TokenType::COLON)
             {
                 // Bare identifier key: firstName → StringLiteral "firstName"

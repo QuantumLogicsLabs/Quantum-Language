@@ -357,37 +357,52 @@ Token Lexer::readIdentifierOrKeyword()
                 std::string fmtPart;
                 int depth = 1;
                 bool inFormat = false;
+                int parenDepth = 0;
+                bool inSingleQ = false;
+                bool inDoubleQ = false;
                 while (pos < src.size() && depth > 0)
                 {
-                    if (current() == '{')
-                        depth++;
-                    else if (current() == '}')
+                    char ch = current();
+                    // Track string literals inside the expression to avoid false colon matches
+                    if (!inDoubleQ && ch == '\'\'' && !inFormat)
+                        inSingleQ = !inSingleQ;
+                    else if (!inSingleQ && ch == '"' && !inFormat)
+                        inDoubleQ = !inDoubleQ;
+                    bool insideStr = inSingleQ || inDoubleQ;
+
+                    if (!insideStr)
                     {
-                        depth--;
-                        if (depth == 0)
+                        if (ch == '(')
+                            parenDepth++;
+                        else if (ch == ')')
                         {
+                            if (parenDepth > 0)
+                                parenDepth--;
+                        }
+                        else if (ch == '{')
+                            depth++;
+                        else if (ch == '}')
+                        {
+                            depth--;
+                            if (depth == 0)
+                            {
+                                advance();
+                                break;
+                            }
+                        }
+                        // Only treat ':' as format separator at top-level (no nested parens/braces)
+                        if (depth == 1 && parenDepth == 0 && ch == ':' && !inFormat)
+                        {
+                            inFormat = true;
                             advance();
-                            break;
+                            continue;
                         }
                     }
 
-                    // Only start formatting if we are at the top level of the interpolation
-                    // to prevent matching dict colons like {"a": 1}
-                    if (depth == 1 && current() == ':' && !inFormat)
-                    {
-                        inFormat = true;
-                        advance();
-                        continue;
-                    }
-
                     if (inFormat)
-                    {
-                        fmtPart += current();
-                    }
+                        fmtPart += ch;
                     else
-                    {
-                        exprPart += current();
-                    }
+                        exprPart += ch;
                     advance();
                 }
 
@@ -886,7 +901,19 @@ std::vector<Token> Lexer::tokenize()
             }
             break;
         case '?':
-            rawTokens.emplace_back(TokenType::QUESTION, "?", startLine, startCol);
+            // Optional chaining: ?.  → treat as DOT (values are always valid in our interpreter)
+            if (current() == '.')
+            {
+                advance(); // consume the '.'
+                rawTokens.emplace_back(TokenType::DOT, ".", startLine, startCol);
+            }
+            else if (current() == '[')
+            {
+                // ?.[  — optional index, treat as LBRACKET
+                rawTokens.emplace_back(TokenType::QUESTION, "?", startLine, startCol);
+            }
+            else
+                rawTokens.emplace_back(TokenType::QUESTION, "?", startLine, startCol);
             break;
         case '@':
             rawTokens.emplace_back(TokenType::DECORATOR, "@", startLine, startCol);
@@ -934,7 +961,7 @@ std::vector<Token> Lexer::tokenize()
     }
 
     std::vector<int> indentStack = {0};
-    int bracketDepth = 0; // track ( { [ depth — never emit INDENT/DEDENT inside these
+    int bracketDepth = 0;      // track ( { [ depth — never emit INDENT/DEDENT inside these
     int parenBracketDepth = 0; // track ( [ depth only — entirely drop NEWLINE inside these
 
     for (size_t i = 0; i < rawTokens.size(); ++i)
