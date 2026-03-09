@@ -1,11 +1,10 @@
 # main.cpp - Entry Point and CLI Interface
 
 ## Overview
-`main.cpp` serves as the entry point for the Quantum Language interpreter. It handles command-line argument parsing, provides both REPL (Read-Eval-Print Loop) and file execution modes, and includes comprehensive error handling and user interface elements.
+`main.cpp` serves as the entry point for the Quantum Language interpreter. It handles command-line argument parsing, provides both REPL (Read-Eval-Print Loop) and file execution modes, includes comprehensive error handling, and features an advanced test runner for automated testing.
 
-## Line-by-Line Analysis
+## Complete Source Code
 
-### Includes and Dependencies (Lines 1-15)
 ```cpp
 #include "../include/Lexer.h"
 #include "../include/Parser.h"
@@ -22,14 +21,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
-```
-- **Lines 1-5**: Core compiler components - Lexer, Parser, Interpreter, Error handling, and Value system
-- **Lines 6-11**: Standard C++ libraries for I/O operations, file handling, string manipulation, and algorithms
-- **Line 12**: Filesystem library for enhanced file operations (C++17 feature)
-- **Lines 13-15**: Windows-specific header for console UTF-8 support
 
-### Global Configuration (Lines 17-23)
-```cpp
 namespace fs = std::filesystem;
 
 // ─── Globals ──────────────────────────────────────────────────────────────────
@@ -37,43 +29,63 @@ namespace fs = std::filesystem;
 // Set to true during --test runs so input() returns "" instantly instead of
 // blocking on stdin.
 bool g_testMode = false;
-```
-- **Line 17**: Namespace alias for filesystem operations
-- **Lines 19-23**: Global test mode flag for automated testing without blocking input
 
-### Banner Display Function (Lines 27-40)
-```cpp
+// ─── Banner / Aura ───────────────────────────────────────────────────────────
+
 static void printBanner()
 {
     std::cout << Colors::CYAN << Colors::BOLD
               << "\n"
               << "  ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗████████╗██╗   ██╗███╗   ███╗\n"
-              // ... ASCII art continues ...
+              << " ██╔═══██╗██║   ██║██╔══██╗████╗  ██║╚══██╔══╝██║   ██║████╗ ████║\n"
+              << " ██║   ██║██║   ██║███████║██╔██╗ ██║   ██║   ██║   ██║██╔████╔██║\n"
+              << " ██║▄▄ ██║██║   ██║██╔══██║██║╚██╗██║   ██║   ██║   ██║██║╚██╔╝██║\n"
+              << " ╚██████╔╝╚██████╔╝██║  ██║██║ ╚████║   ██║   ╚██████╔╝██║ ╚═╝ ██║\n"
+              << "  ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚═╝     ╚═╝\n"
               << Colors::RESET
               << Colors::YELLOW << "  Quantum Language v1.0.0 | The Cybersecurity-Ready Scripting Language\n"
               << Colors::RESET << "\n";
 }
-```
-- **Purpose**: Displays the Quantum Language logo and version information
-- **Design**: Uses ANSI color codes for visual appeal
-- **Static function**: Internal helper, not exported outside this translation unit
 
-### Achievement Display Function (Lines 42-77)
-```cpp
 static void printAura()
 {
     std::cout << Colors::CYAN << Colors::BOLD
               << "\n╔══════════════════════════════════════════════════════════════════╗\n"
-              // ... Achievement display continues ...
+              << "║" << Colors::YELLOW << "                🌟 QUANTUM LANGUAGE ACHIEVEMENTS 🌟" << Colors::CYAN << "               ║\n"
+              << "╠══════════════════════════════════════════════════════════════════╣\n"
+              << "║" << Colors::GREEN << "  ✅ Complete C++17 Compiler Implementation" << Colors::CYAN << "                       ║\n"
+              << "║" << Colors::GREEN << "  ✅ Tree-Walk Interpreter Engine" << Colors::CYAN << "                                 ║\n"
+              << "║" << Colors::GREEN << "  ✅ Lexical Analysis & Tokenization" << Colors::CYAN << "                              ║\n"
+              << "║" << Colors::GREEN << "  ✅ Recursive Descent Parser" << Colors::CYAN << "                                     ║\n"
+              << "║" << Colors::GREEN << "  ✅ Abstract Syntax Tree (AST)" << Colors::CYAN << "                                   ║\n"
+              << "║" << Colors::GREEN << "  ✅ Dynamic Type System" << Colors::CYAN << "                                          ║\n"
+              << "║" << Colors::GREEN << "  ✅ REPL Interactive Mode" << Colors::CYAN << "                                        ║\n"
+              << "║" << Colors::GREEN << "  ✅ Cross-Platform Build System" << Colors::CYAN << "                                  ║\n"
+              << "║" << Colors::GREEN << "  ✅ VS Code Language Support" << Colors::CYAN << "                                     ║\n"
+              << "║" << Colors::GREEN << "  ✅ GitHub CI/CD Pipeline" << Colors::CYAN << "                                        ║\n"
+              << "║" << Colors::GREEN << "  ✅ Comprehensive Documentation" << Colors::CYAN << "                                  ║\n"
+              << "╠══════════════════════════════════════════════════════════════════╣\n"
+              << "║" << Colors::MAGENTA << "                    📊 PROJECT STATISTICS 📊" << Colors::CYAN << "                      ║\n"
+              << "╠══════════════════════════════════════════════════════════════════╣\n"
+              << "║" << Colors::WHITE << "  📁 Source Files: " << Colors::YELLOW << "6 core modules" << Colors::CYAN << "                                 ║\n"
+              << "║" << Colors::WHITE << "  📝 Language Version: " << Colors::YELLOW << "v1.0.0" << Colors::CYAN << "                                     ║\n"
+              << "║" << Colors::WHITE << "  🔧 Build System: " << Colors::YELLOW << "CMake + MSVC" << Colors::CYAN << "                                   ║\n"
+              << "║" << Colors::WHITE << "  🎯 Language Standard: " << Colors::YELLOW << "C++17" << Colors::CYAN << "                                     ║\n"
+              << "║" << Colors::WHITE << "  🚀 Performance: " << Colors::YELLOW << "Optimized Release Build" << Colors::CYAN << "                         ║\n"
+              << "╠══════════════════════════════════════════════════════════════════╣\n"
+              << "║" << Colors::BLUE << "                    🛡️  CYBERSECURITY FEATURES 🛡️" << Colors::CYAN << "                   ║\n"
+              << "╠══════════════════════════════════════════════════════════════════╣\n"
+              << "║" << Colors::BLUE << "  🔍 scan()      - Network scanning capabilities" << Colors::CYAN << "                  ║\n"
+              << "║" << Colors::BLUE << "  💣 payload()   - Exploit payload creation" << Colors::CYAN << "                       ║\n"
+              << "║" << Colors::BLUE << "  🔐 encrypt()   - Cryptographic operations" << Colors::CYAN << "                       ║\n"
+              << "║" << Colors::BLUE << "  🔓 decrypt()   - Decryption functions" << Colors::CYAN << "                           ║\n"
+              << "║" << Colors::BLUE << "  🗝️  hash()     - Hashing algorithms" << Colors::CYAN << "                              ║\n"
+              << "╚══════════════════════════════════════════════════════════════════╝\n"
               << Colors::RESET;
 }
-```
-- **Purpose**: Shows project achievements and statistics in a formatted table
-- **Features**: Lists completed features, project statistics, and cybersecurity capabilities
-- **UI Design**: Uses Unicode box-drawing characters for professional appearance
 
-### REPL Implementation (Lines 81-120)
-```cpp
+// ─── REPL ─────────────────────────────────────────────────────────────────────
+
 static void runREPL()
 {
     printBanner();
@@ -122,18 +134,9 @@ static void runREPL()
     std::cout << Colors::YELLOW << "\n  Goodbye! 👋\n"
               << Colors::RESET;
 }
-```
 
-**REPL Analysis:**
-- **Line 87**: Creates a single interpreter instance for the entire session, maintaining state across commands
-- **Line 88**: Stores user input line by line
-- **Line 89**: Tracks line numbers for error reporting and prompt display
-- **Lines 93-99**: Prompt display with line numbering and input handling
-- **Lines 101-107**: Core compilation pipeline - Lexer → Parser → Interpreter
-- **Lines 109-119**: Comprehensive exception handling for different error types
+// ─── runFile ──────────────────────────────────────────────────────────────────
 
-### File Execution Function (Lines 122-180)
-```cpp
 static void runFile(const std::string &path)
 {
     std::ifstream file(path);
@@ -144,7 +147,7 @@ static void runFile(const std::string &path)
         std::exit(1);
     }
 
-    // Check extension
+    // CHECK FILE HAS .sa EXTENSION OR NOT:
     if (path.size() < 3 || path.substr(path.size() - 3) != ".sa")
     {
         std::cerr << Colors::YELLOW << "[Warning] " << Colors::RESET
@@ -159,99 +162,573 @@ static void runFile(const std::string &path)
     {
         Lexer lexer(source);
         auto tokens = lexer.tokenize();
-
         Parser parser(std::move(tokens));
         auto ast = parser.parse();
 
         Interpreter interp;
-        interp.execute(*ast);
+        if (ast->is<BlockStmt>())
+            interp.execBlock(ast->as<BlockStmt>(), interp.globals);
+        else
+            interp.execute(*ast);
+
+        try
+        {
+            auto mainFn = interp.globals->get("main");
+            if (mainFn.isFunction() &&
+                std::holds_alternative<std::shared_ptr<QuantumFunction>>(mainFn.data))
+            {
+                CallExpr ce;
+                ce.callee = std::make_unique<ASTNode>(Identifier{"main"}, 0);
+                ASTNode callNode(std::move(ce), 0);
+                interp.evaluate(callNode);
+            }
+        }
+        catch (const ReturnSignal &)
+        {
+            // Normal return from main() — not an error.
+        }
+        catch (const NameError &e)
+        {
+            // Only swallow "Undefined variable: 'main'" (no main() defined).
+            // Any other NameError thrown inside main() is a real bug.
+            const std::string msg = e.what();
+            if (msg.find("'main'") == std::string::npos &&
+                msg.find("\"main\"") == std::string::npos)
+            {
+                std::cerr << Colors::RED << Colors::BOLD
+                          << "\n  ✗ " << e.kind << Colors::RESET;
+                if (e.line > 0)
+                    std::cerr << " at line " << e.line;
+                std::cerr << "\n    " << msg << "\n\n";
+                std::exit(1);
+            }
+        }
+        catch (const QuantumError &e)
+        {
+            // All runtime errors inside main() are real failures.
+            std::cerr << Colors::RED << Colors::BOLD
+                      << "\n  ✗ " << e.kind << Colors::RESET;
+            if (e.line > 0)
+                std::cerr << " at line " << e.line;
+            std::cerr << "\n    " << e.what() << "\n\n";
+            std::exit(1);
+        }
     }
-    // ... Exception handling ...
+    catch (const ParseError &e)
+    {
+        std::cerr << Colors::RED << Colors::BOLD
+                  << "\n  ✗ ParseError" << Colors::RESET
+                  << " in " << path << " at line " << e.line << ":" << e.col << "\n"
+                  << "    " << e.what() << "\n\n";
+        std::exit(1);
+    }
+    catch (const QuantumError &e)
+    {
+        std::cerr << Colors::RED << Colors::BOLD
+                  << "\n  ✗ " << e.kind << Colors::RESET;
+        if (e.line > 0)
+            std::cerr << " at line " << e.line;
+        std::cerr << "\n    " << e.what() << "\n\n";
+        std::exit(1);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << Colors::RED << "[Fatal] " << Colors::RESET << e.what() << "\n";
+        std::exit(1);
+    }
 }
-```
 
-**File Execution Analysis:**
-- **Lines 124-130**: File existence validation with graceful error handling
-- **Lines 133-137**: Extension validation (.sa files) with warning instead of error
-- **Lines 139-141**: Efficient file reading using string stream buffer
-- **Lines 145-152**: Same compilation pipeline as REPL but with complete file content
-- **Lines 154-179**: Enhanced error reporting with file context and line numbers
+// ─── checkFile ────────────────────────────────────────────────────────────────
 
-### Test Mode Execution (Lines 182-210)
-```cpp
-static void runTestMode(const std::string &path)
+static int checkFile(const std::string &path)
 {
-    g_testMode = true;  // Enable test mode
-    
     std::ifstream file(path);
     if (!file.is_open())
     {
-        std::cerr << Colors::RED << "[Error] " << Colors::RESET
-                  << "Cannot open test file: " << path << "\n";
-        std::exit(1);
+        std::cerr << path << ":1:1: error: Cannot open file\n";
+        return 1;
+    }
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    std::string source = ss.str();
+    try
+    {
+        Lexer lexer(source);
+        auto tokens = lexer.tokenize();
+        Parser parser(std::move(tokens));
+        auto ast = parser.parse();
+        (void)ast;
+        return 0;
+    }
+    catch (const ParseError &e)
+    {
+        std::cerr << path << ":" << e.line << ":" << e.col << ": error: " << e.what() << "\n";
+        return 1;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << path << ":1:1: error: " << e.what() << "\n";
+        return 1;
+    }
+}
+
+// ─── Test helpers ─────────────────────────────────────────────────────────────
+
+struct TestResult
+{
+    std::string path;   // display path (relative)
+    std::string source; // full file source code
+    std::string error;  // non-empty = failed
+    int line = 0;       // line number of the error (0 = unknown)
+    int col = 0;        // column (ParseError only)
+};
+
+// Redirect stdin to NUL / /dev/null so that any input() / cin call inside a
+// tested file returns EOF immediately instead of blocking the terminal.
+static void redirectStdinToNull()
+{
+#ifdef _WIN32
+    FILE *nul = nullptr;
+    freopen_s(&nul, "NUL", "r", stdin);
+#else
+    freopen("/dev/null", "r", stdin);
+#endif
+}
+
+// RAII guard: restores cout/cerr buffers unconditionally on scope exit,
+// even when an exception propagates through testFile().  Without this,
+// any throw that bypassed the manual rdbuf restore calls would leave
+// stdout/stderr redirected to the sink for every subsequent test file.
+struct StreamGuard
+{
+    std::streambuf *oldCout;
+    std::streambuf *oldCerr;
+    StreamGuard(std::streambuf *oc, std::streambuf *oe) : oldCout(oc), oldCerr(oe) {}
+    ~StreamGuard()
+    {
+        std::cout.rdbuf(oldCout);
+        std::cerr.rdbuf(oldCerr);
+    }
+};
+
+// Returns true if an error was caused purely by input() returning "" because
+// stdin was redirected to /dev/null in --test mode.  These files are valid —
+// they just need real user input to run correctly.
+static bool isInputDrivenError(const std::string &msg)
+{
+    if (msg.find("got string") != std::string::npos)
+        return true;
+    if (msg.find("got nil") != std::string::npos)
+        return true;
+    if (msg.find("Cannot convert ''") != std::string::npos)
+        return true;
+    if (msg.find("int() cannot convert ''") != std::string::npos)
+        return true;
+    if (msg.find("float() cannot convert ''") != std::string::npos)
+        return true;
+    return false;
+}
+
+// Extract the Nth line (1-based) from source text. Returns "" if out of range.
+static std::string getSourceLine(const std::string &source, int lineNum)
+{
+    if (lineNum <= 0)
+        return "";
+    int cur = 1;
+    size_t i = 0;
+    while (i < source.size())
+    {
+        size_t end = source.find('\n', i);
+        if (end == std::string::npos)
+            end = source.size();
+        if (cur == lineNum)
+            return source.substr(i, end - i);
+        ++cur;
+        i = end + 1;
+    }
+    return "";
+}
+
+// Run one .sa file non-fatally.
+// Phase 1: Parse-only — catches all syntax errors.
+// Phase 2: Execute — catches runtime errors, but treats input()-driven
+//          failures as passes (the file is valid; it just needs real input).
+// Returns a TestResult; .error is "" on pass.
+static TestResult testFile(const std::string &path)
+{
+    TestResult res;
+    res.path = path;
+
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        res.error = "Cannot open file";
+        return res;
     }
 
     std::ostringstream ss;
     ss << file.rdbuf();
-    std::string source = ss.str();
+    res.source = ss.str();
+    const std::string &source = res.source;
+
+    // ── Phase 1: Parse only (no execution, no I/O risk) ───────────────────
+    try
+    {
+        Lexer lexer(source);
+        auto tokens = lexer.tokenize();
+        Parser parser(std::move(tokens));
+        auto ast = parser.parse();
+        (void)ast;
+    }
+    catch (const ParseError &e)
+    {
+        res.error = std::string("ParseError: ") + e.what();
+        res.line = e.line;
+        res.col = e.col;
+        return res;
+    }
+    catch (const std::exception &e)
+    {
+        res.error = std::string("LexError: ") + e.what();
+        res.line = 1;
+        return res;
+    }
+
+    // ── Phase 2: Execute with output swallowed ────────────────────────────
+    std::ostringstream sink;
+    StreamGuard guard(
+        std::cout.rdbuf(sink.rdbuf()),
+        std::cerr.rdbuf(sink.rdbuf()));
+
+    auto setErr = [&](const std::string &kind, const std::string &msg, int ln)
+    {
+        if (isInputDrivenError(msg))
+            return;
+        res.error = kind + ": " + msg;
+        res.line = ln;
+    };
 
     try
     {
         Lexer lexer(source);
         auto tokens = lexer.tokenize();
-
         Parser parser(std::move(tokens));
         auto ast = parser.parse();
 
         Interpreter interp;
-        interp.execute(*ast);
-        
-        std::cout << Colors::GREEN << "Test completed successfully\n" << Colors::RESET;
+        if (ast->is<BlockStmt>())
+            interp.execBlock(ast->as<BlockStmt>(), interp.globals);
+        else
+            interp.execute(*ast);
+
+        try
+        {
+            auto mainFn = interp.globals->get("main");
+            if (mainFn.isFunction() &&
+                std::holds_alternative<std::shared_ptr<QuantumFunction>>(mainFn.data))
+            {
+                CallExpr ce;
+                ce.callee = std::make_unique<ASTNode>(Identifier{"main"}, 0);
+                ASTNode callNode(std::move(ce), 0);
+                interp.evaluate(callNode);
+            }
+        }
+        catch (const ReturnSignal &)
+        {
+        }
+        catch (const NameError &e)
+        {
+            const std::string msg = e.what();
+            if (msg.find("'main'") == std::string::npos &&
+                msg.find("\"main\"") == std::string::npos)
+                setErr(e.kind, msg, e.line);
+        }
+        catch (const QuantumError &e)
+        {
+            setErr(e.kind, e.what(), e.line);
+        }
+        catch (const std::exception &e)
+        {
+            std::string msg = e.what();
+            if (!isInputDrivenError(msg))
+                res.error = "Fatal in main(): " + msg;
+        }
+    }
+    catch (const QuantumError &e)
+    {
+        setErr(e.kind, e.what(), e.line);
     }
     catch (const std::exception &e)
     {
-        std::cout << Colors::RED << "Test failed: " << e.what() << "\n" << Colors::RESET;
-        std::exit(1);
+        std::string msg = e.what();
+        if (!isInputDrivenError(msg))
+            res.error = "Fatal: " + msg;
+    }
+    catch (...)
+    {
+        res.error = "Fatal: unknown exception";
+    }
+
+    return res;
+}
+
+// Recursively collect every .sa file under `dir`.
+static void collectSaFiles(const fs::path &dir, std::vector<fs::path> &out)
+{
+    if (!fs::exists(dir) || !fs::is_directory(dir))
+        return;
+
+    for (auto &entry : fs::recursive_directory_iterator(
+             dir, fs::directory_options::skip_permission_denied))
+    {
+        if (entry.is_regular_file() && entry.path().extension() == ".sa")
+            out.push_back(entry.path());
     }
 }
-```
 
-**Test Mode Features:**
-- **Non-blocking Input**: `g_testMode` flag makes `input()` return empty string
-- **Automated Testing**: Designed for CI/CD and automated test suites
-- **Clear Output**: Success/failure indication with color coding
+// ─── runTestExamples ─────────────────────────────────────────────────────────
 
-### Help Display Function (Lines 212-240)
-```cpp
+static int runTestExamples(const std::string &examplesDir)
+{
+    fs::path dir(examplesDir);
+    if (!fs::exists(dir) || !fs::is_directory(dir))
+    {
+        std::cerr << Colors::RED << "[Error] " << Colors::RESET
+                  << "Examples directory not found: " << dir.string() << "\n";
+        return 1;
+    }
+
+    // Redirect stdin → NUL/dev/null so programs that call input() / cin
+    // don't hang waiting for keyboard input.
+    redirectStdinToNull();
+    g_testMode = true;
+
+    // Collect & sort files
+    std::vector<fs::path> files;
+    collectSaFiles(dir, files);
+
+    if (files.empty())
+    {
+        std::cout << Colors::YELLOW << "[Warning] " << Colors::RESET
+                  << "No .sa files found under: " << dir.string() << "\n";
+        return 0;
+    }
+
+    std::sort(files.begin(), files.end());
+
+    // Console header
+    std::cout << Colors::CYAN << Colors::BOLD
+              << "\n══════════════════════════════════════════════════\n"
+              << "  Quantum Test Runner\n"
+              << "══════════════════════════════════════════════════\n"
+              << Colors::RESET
+              << "  Directory  : " << Colors::YELLOW << fs::absolute(dir).string() << Colors::RESET << "\n"
+              << "  Files found: " << Colors::YELLOW << files.size() << Colors::RESET << "\n\n";
+
+    // Run every file
+    std::vector<TestResult> failures;
+    int passed = 0;
+
+    for (const auto &filePath : files)
+    {
+        std::string pathStr = filePath.string();
+
+        std::string displayPath = pathStr;
+        try
+        {
+            displayPath = fs::relative(filePath).string();
+        }
+        catch (...)
+        {
+        }
+
+        TestResult tr = testFile(pathStr);
+        tr.path = displayPath;
+        // source was already read inside testFile; no need to re-read
+
+        if (tr.error.empty())
+        {
+            std::cout << Colors::GREEN << "  ✓ " << Colors::RESET << displayPath << "\n";
+            ++passed;
+        }
+        else
+        {
+            // ── Console: file path on its own line, then indented error detail ──
+            std::cout << Colors::RED << "  ✗ " << Colors::RESET << displayPath << "\n";
+
+            if (tr.line > 0)
+                std::cout << "      " << Colors::YELLOW << "Line " << tr.line;
+            if (tr.col > 0)
+                std::cout << ":" << tr.col;
+            if (tr.line > 0)
+                std::cout << Colors::RESET << "  " << Colors::RED << tr.error << Colors::RESET << "\n";
+            else
+                std::cout << "      " << Colors::RED << tr.error << Colors::RESET << "\n";
+
+            // Show the offending source line with a caret pointer
+            if (tr.line > 0)
+            {
+                std::string srcLine = getSourceLine(tr.source, tr.line);
+                if (!srcLine.empty())
+                {
+                    // Trim leading whitespace for display but track indent
+                    size_t indent = 0;
+                    while (indent < srcLine.size() && (srcLine[indent] == ' ' || srcLine[indent] == '\t'))
+                        ++indent;
+                    std::string trimmed = srcLine.substr(indent);
+                    std::cout << "      " << Colors::WHITE << "| " << trimmed << Colors::RESET << "\n";
+                    if (tr.col > 0 && tr.col > (int)indent)
+                    {
+                        int caretPos = tr.col - (int)indent - 1;
+                        if (caretPos < 0)
+                            caretPos = 0;
+                        std::cout << "      " << Colors::RED << "| "
+                                  << std::string(caretPos, ' ') << "^"
+                                  << Colors::RESET << "\n";
+                    }
+                }
+            }
+
+            failures.push_back(tr);
+        }
+    }
+
+    int total = static_cast<int>(files.size());
+    int failed = static_cast<int>(failures.size());
+
+    // Console summary
+    std::cout << Colors::CYAN << Colors::BOLD
+              << "\n══════════════════════════════════════════════════\n"
+              << Colors::RESET;
+
+    if (failed == 0)
+    {
+        std::cout << Colors::GREEN << Colors::BOLD
+                  << "  ✓ All " << total << " file(s) passed!\n"
+                  << Colors::RESET;
+    }
+    else
+    {
+        std::cout << Colors::GREEN << "  Passed : " << passed << " / " << total << "\n"
+                  << Colors::RESET
+                  << Colors::RED << "  Failed : " << failed << " / " << total << "\n"
+                  << Colors::RESET;
+    }
+
+    std::cout << Colors::CYAN << Colors::BOLD
+              << "══════════════════════════════════════════════════\n\n"
+              << Colors::RESET;
+
+    // ── Write test_results.txt ────────────────────────────────────────────
+    // Only failed files are written; each entry contains:
+    //   • the file path
+    //   • the exact error
+    //   • the complete source code of that file
+    const std::string reportPath = "test_results.txt";
+    std::ofstream report(reportPath);
+
+    if (!report.is_open())
+    {
+        std::cerr << Colors::RED << "[Error] " << Colors::RESET
+                  << "Could not write report to: " << reportPath << "\n";
+        return failed > 0 ? 1 : 0;
+    }
+
+    report << "================================================================================\n";
+    report << "  Quantum Language — Test Results\n";
+    report << "================================================================================\n";
+    report << "  Directory : " << fs::absolute(dir).string() << "\n";
+    report << "  Total     : " << total << "\n";
+    report << "  Passed    : " << passed << "\n";
+    report << "  Failed    : " << failed << "\n";
+    report << "================================================================================\n\n";
+
+    if (failures.empty())
+    {
+        report << "All files passed — no errors found.\n";
+    }
+    else
+    {
+        for (size_t i = 0; i < failures.size(); ++i)
+        {
+            const auto &f = failures[i];
+
+            report << "################################################################################\n";
+            report << "  FAILED FILE #" << (i + 1) << "\n";
+            report << "################################################################################\n";
+            report << "  Path  : " << f.path << "\n";
+            report << "  Error : " << f.error << "\n";
+            if (f.line > 0)
+            {
+                report << "  Line  : " << f.line;
+                if (f.col > 0)
+                    report << ":" << f.col;
+                report << "\n";
+                std::string srcLine = getSourceLine(f.source, f.line);
+                if (!srcLine.empty())
+                {
+                    report << "  Code  : " << srcLine << "\n";
+                    if (f.col > 0)
+                    {
+                        int spaces = (int)srcLine.size() - (int)srcLine.size(); // leading
+                        // find actual leading whitespace
+                        int lead = 0;
+                        while (lead < (int)srcLine.size() &&
+                               (srcLine[lead] == ' ' || srcLine[lead] == '\t'))
+                            ++lead;
+                        int caretPos = 10 + f.col - 1; // "  Code  : " is 10 chars
+                        report << std::string(caretPos, ' ') << "^\n";
+                        (void)spaces;
+                    }
+                }
+            }
+            report << "--------------------------------------------------------------------------------\n";
+            report << "  Source Code:\n";
+            report << "--------------------------------------------------------------------------------\n";
+            report << f.source << "\n";
+            report << "################################################################################\n\n";
+        }
+    }
+
+    report.close();
+
+    std::cout << Colors::CYAN << "  Report saved to: "
+              << Colors::YELLOW << reportPath << Colors::RESET << "\n\n";
+
+    return failed > 0 ? 1 : 0;
+}
+
+// ─── printHelp ────────────────────────────────────────────────────────────────
+
 static void printHelp(const char *prog)
 {
     std::cout << Colors::BOLD << "Usage:\n"
               << Colors::RESET
-              << "  " << prog << " <file.sa>          Run a Quantum script\n"
-              << "  " << prog << "                     Start interactive REPL\n"
-              << "  " << prog << " --help              Show this help\n"
-              << "  " << prog << " --version           Show version info\n"
-              << "  " << prog << " --test <file.sa>     Run in test mode (non-blocking input)\n"
-              << "  " << prog << " --aura              Show achievement display\n\n"
+              << "  " << prog << " <file.sa>              Run a Quantum script\n"
+              << "  " << prog << "                         Start interactive REPL\n"
+              << "  " << prog << " --help                  Show this help\n"
+              << "  " << prog << " --version               Show version info\n"
+              << "  " << prog << " --test examples         Test all .sa files under examples/\n"
+              << "  " << prog << " --test <dir>            Test all .sa files under <dir>\n\n"
               << Colors::BOLD << "File extension:\n"
               << Colors::RESET
               << "  Quantum scripts use the .sa extension\n\n"
               << Colors::BOLD << "Examples:\n"
               << Colors::RESET
               << "  quantum hello.sa\n"
-              << "  quantum --test script.sa\n"
-              << "  quantum script.sa\n";
+              << "  quantum script.sa\n"
+              << "  quantum --test examples\n";
 }
-```
 
-### Main Function (Lines 242-320)
-```cpp
+// ─── main ─────────────────────────────────────────────────────────────────────
+
 int main(int argc, char *argv[])
 {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
+
     if (argc == 1)
     {
         runREPL();
@@ -282,79 +759,187 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    if (arg == "--test" && argc >= 3)
+    if (arg == "--check" && argc >= 3)
     {
-        runTestMode(argv[2]);
-        return 0;
+        return checkFile(argv[2]);
     }
+
+    if (arg == "--test")
+    {
+        std::string targetDir = "examples";
+        if (argc >= 3)
+            targetDir = argv[2];
+        return runTestExamples(targetDir);
+    }
+
     runFile(arg);
     return 0;
 }
 ```
 
-**Main Function Analysis:**
-- **Lines 244-247**: Windows UTF-8 console setup for proper Unicode display
-- **Lines 249-254**: Default behavior - start REPL when no arguments provided
-- **Lines 256-262**: Help flag handling with both short and long forms
-- **Lines 264-269**: Special `--aura` flag for achievement display
-- **Lines 271-278**: Version information display
-- **Lines 280-285**: Test mode with argument validation
-- **Line 287**: Default case - treat argument as filename to execute
+## Block-by-Block Explanation
 
-## New Features in Current Version
+### **Includes and Dependencies (Lines 1-17)**
+```cpp
+#include "../include/Lexer.h"
+#include "../include/Parser.h"
+#include "../include/Interpreter.h"
+#include "../include/Error.h"
+#include "../include/Value.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <filesystem>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
-### Test Mode Support
-- **`--test` Flag**: Enables non-blocking input for automated testing
-- **Global Test Flag**: `g_testMode` affects interpreter behavior
-- **CI/CD Ready**: Designed for continuous integration pipelines
+namespace fs = std::filesystem;
+```
+- **Core Components**: Includes all compiler components - Lexer, Parser, Interpreter, Error handling, and Value system
+- **Standard Libraries**: I/O streams, file operations, string manipulation, algorithms, and filesystem (C++17)
+- **Platform Support**: Windows-specific header for UTF-8 console support
+- **Namespace Alias**: `fs` alias for cleaner filesystem operations
 
-### Enhanced File Handling
-- **Filesystem Library**: Uses `std::filesystem` for modern file operations
-- **Better Error Messages**: More informative file-related error reporting
-- **Extension Validation**: Checks for `.sa` extension with warnings
+### **Global Test Mode Flag (Lines 19-23)**
+```cpp
+// ─── Globals ──────────────────────────────────────────────────────────────────
 
-### Improved CLI
-- **Extended Help**: Updated help text with new options
-- **Better Organization**: Cleaner command-line argument handling
-- **Professional Output**: Enhanced visual presentation
+// Set to true during --test runs so input() returns "" instantly instead of
+// blocking on stdin.
+bool g_testMode = false;
+```
+- **Purpose**: Global flag for automated testing
+- **Behavior**: When true, `input()` returns empty string instead of blocking
+- **Usage**: Enables non-blocking test execution for CI/CD pipelines
 
-## Design Patterns and Architecture
+### **Banner Display Functions (Lines 25-77)**
+```cpp
+static void printBanner()
+{
+    // ASCII art logo with colors
+}
 
-### Command Pattern
-The main function implements a command pattern where different arguments trigger different execution modes:
-- No arguments → REPL mode
-- `--help` → Help display
-- `--version` → Version info
-- `--test` → Test mode execution
-- Filename → File execution
+static void printAura()
+{
+    // Achievement display with statistics and cybersecurity features
+}
+```
+- **`printBanner()`**: Displays Quantum Language logo and version information with color formatting
+- **`printAura()`**: Shows comprehensive project achievements, statistics, and cybersecurity features
+- **Visual Design**: Uses Unicode box-drawing characters and ANSI color codes for professional appearance
 
-### Error Handling Strategy
-- **Layered exception handling**: ParseError, QuantumError, and std::exception
-- **User-friendly error messages**: Colored output with context information
-- **Graceful degradation**: Warnings for non-critical issues (wrong file extension)
+### **REPL Implementation (Lines 79-128)**
+```cpp
+static void runREPL()
+{
+    printBanner();
+    // REPL loop with line numbering
+    while (true) {
+        // Prompt, input, compilation pipeline, error handling
+    }
+}
+```
+- **Interactive Mode**: Provides Read-Eval-Print Loop for interactive development
+- **Compilation Pipeline**: Lexer → Parser → Interpreter for each line
+- **Error Handling**: Comprehensive exception handling with colored error messages
+- **User Experience**: Line numbering, colored prompts, graceful exit
 
-### Resource Management
-- **RAII**: File streams automatically closed when leaving scope
-- **Smart pointers**: Used throughout the interpreter components
-- **Efficient I/O**: String stream buffering for file reading
+### **File Execution (Lines 130-231)**
+```cpp
+static void runFile(const std::string &path)
+{
+    // File validation, reading, compilation, execution
+    // Main function detection and execution
+    // Comprehensive error handling
+}
+```
+- **File Validation**: Checks file existence and `.sa` extension
+- **Compilation Pipeline**: Complete lexer → parser → interpreter flow
+- **Main Function Support**: Automatically detects and executes `main()` function
+- **Error Handling**: Detailed error reporting with file context and line numbers
 
-## Why This Design Works
+### **Syntax Checking (Lines 233-265)**
+```cpp
+static int checkFile(const std::string &path)
+{
+    // Parse-only validation without execution
+    // Returns 0 for success, 1 for errors
+}
+```
+- **Parse-Only Mode**: Validates syntax without executing code
+- **Fast Validation**: Useful for IDE integration and build systems
+- **Error Reporting**: Compiler-style error messages with line/column information
 
-### Separation of Concerns
-- **CLI handling** separated from **core interpreter logic**
-- **Error display** separated from **error generation**
-- **File I/O** separated from **language processing**
+### **Test Infrastructure (Lines 267-691)**
+```cpp
+struct TestResult { /* Test result structure */ };
+static void redirectStdinToNull() { /* Non-blocking input setup */ };
+struct StreamGuard { /* RAII stream restoration */ };
+static bool isInputDrivenError(const std::string &msg) { /* Error classification */ };
+static std::string getSourceLine(const std::string &source, int lineNum) { /* Source extraction */ };
+static TestResult testFile(const std::string &path) { /* Two-phase testing */ };
+static void collectSaFiles(const fs::path &dir, std::vector<fs::path> &out) { /* File collection */ };
+static int runTestExamples(const std::string &examplesDir) { /* Test runner */ };
+```
+- **TestResult Structure**: Stores test outcomes with detailed error information
+- **Stream Management**: RAII guard for stream redirection during testing
+- **Input Handling**: Distinguishes between real errors and input-driven failures
+- **Two-Phase Testing**: Parse validation + execution with output capture
+- **File Discovery**: Recursive `.sa` file collection with filesystem operations
+- **Test Runner**: Comprehensive test execution with reporting and statistics
 
-### User Experience Focus
-- **Informative prompts** with line numbers in REPL
-- **Colored output** for better readability
-- **Comprehensive help** system with multiple options
-- **Test mode** for automated workflows
+### **Help System (Lines 693-713)**
+```cpp
+static void printHelp(const char *prog)
+{
+    // Usage instructions and examples
+}
+```
+- **Usage Guide**: Comprehensive command-line usage instructions
+- **Examples**: Practical examples for different use cases
+- **Feature Documentation**: Explains all available options and modes
 
-### Robustness
-- **Comprehensive error handling** for all failure modes
-- **Input validation** for file existence and format
-- **Graceful EOF handling** in REPL
-- **Cross-platform considerations** with Windows-specific UTF-8 setup
+### **Main Function (Lines 715-769)**
+```cpp
+int main(int argc, char *argv[])
+{
+    // UTF-8 setup, argument parsing, command dispatch
+}
+```
+- **Platform Setup**: Windows UTF-8 console configuration
+- **Argument Parsing**: Command-line argument analysis and routing
+- **Command Dispatch**: Routes to appropriate execution modes (REPL, file, test, help)
+- **Error Handling**: Graceful handling of invalid arguments and errors
 
-This main.cpp design provides a professional, user-friendly interface while maintaining clean separation between the CLI layer and the core language implementation, with enhanced features for testing and automation.
+## Key Features and Design Patterns
+
+### **Advanced Test Runner**
+- **Non-blocking Input**: Redirects stdin to prevent hanging during automated tests
+- **Two-Phase Testing**: Parse validation + execution with output capture
+- **Smart Error Classification**: Distinguishes real errors from input-dependent failures
+- **Comprehensive Reporting**: Console output + detailed text report generation
+- **Source Context**: Shows offending code lines with caret pointers
+
+### **Professional CLI Design**
+- **Multiple Modes**: REPL, file execution, syntax checking, batch testing
+- **Colored Output**: ANSI color codes for enhanced readability
+- **Unicode Support**: Proper UTF-8 handling across platforms
+- **Help System**: Comprehensive usage documentation
+
+### **Robust Error Handling**
+- **Layered Exceptions**: Different exception types for various error categories
+- **Context Information**: Line numbers, file paths, and detailed error messages
+- **Graceful Recovery**: Continues execution after recoverable errors
+- **User-Friendly Messages**: Clear, actionable error descriptions
+
+### **Modern C++ Features**
+- **Filesystem Library**: Modern cross-platform file operations
+- **RAII Patterns**: Automatic resource management with smart pointers and guards
+- **Move Semantics**: Efficient data transfer and memory management
+- **Exception Safety**: Strong exception guarantees throughout
+
+This implementation demonstrates a professional, feature-rich command-line interface with advanced testing capabilities, making it suitable for both interactive development and automated CI/CD pipelines.
