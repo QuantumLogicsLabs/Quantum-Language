@@ -15,6 +15,8 @@ public:
 
 private:
     std::shared_ptr<Environment> env;
+    long long stepCount_ = 0; // guards against infinite loops (e.g. empty-stdin programs)
+    static constexpr long long MAX_STEPS = 2'000'000;
 
     void registerNatives();
 

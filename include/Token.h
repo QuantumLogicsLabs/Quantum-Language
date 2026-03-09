@@ -41,7 +41,7 @@ enum class TokenType
     PRINT,
     INPUT,
     COUT, // cout
-    CIN, // cin
+    CIN,  // cin
     FROM,
     IMPORT,
     // C/C++ style type keywords
@@ -87,7 +87,11 @@ enum class TokenType
     MINUS_ASSIGN,
     STAR_ASSIGN,
     SLASH_ASSIGN,
-    FAT_ARROW, // =>
+    AND_ASSIGN, // &=
+    OR_ASSIGN,  // |=
+    XOR_ASSIGN, // ^=
+    MOD_ASSIGN, // %=
+    FAT_ARROW,  // =>
     PLUS_PLUS,
     MINUS_MINUS,
     BIT_AND,

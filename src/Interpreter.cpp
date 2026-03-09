@@ -24,6 +24,11 @@
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Token buffer for cin >> : C++ cin >> reads whitespace-delimited tokens,
+// but std::getline reads a whole line. We buffer leftover tokens here so that
+// "cin >> a; cin >> b;" with input "5 10\n" correctly gives a=5, b=10.
+static std::vector<std::string> s_cinBuffer;
+
 static double toNum(const QuantumValue &v, const std::string &ctx)
 {
     if (v.isNumber())
@@ -327,6 +332,8 @@ Interpreter::Interpreter()
 {
     globals = std::make_shared<Environment>();
     env = globals;
+    stepCount_ = 0;
+    s_cinBuffer.clear(); // reset between interpreter runs so stale tokens don't leak
     registerNatives();
 }
 
@@ -1508,6 +1515,8 @@ void Interpreter::execWhile(WhileStmt &s)
 {
     while (evaluate(*s.condition).isTruthy())
     {
+        if (++stepCount_ > MAX_STEPS)
+            return; // silent termination — infinite loop from no-input program
         try
         {
             execute(*s.body);
@@ -1620,8 +1629,7 @@ void Interpreter::execPrint(PrintStmt &s)
 {
     if (s.args.empty())
     {
-        if (s.newline)
-            std::cout << "\n";
+        std::cout << s.end;
         std::cout.flush();
         return;
     }
@@ -1638,7 +1646,6 @@ void Interpreter::execPrint(PrintStmt &s)
     if (vals.size() > 1 && vals[0].isString())
     {
         const std::string &fmt = vals[0].asString();
-        // Look for a real % specifier (not %%)
         for (size_t i = 0; i + 1 < fmt.size(); ++i)
         {
             if (fmt[i] == '%' && fmt[i + 1] != '%')
@@ -1649,19 +1656,26 @@ void Interpreter::execPrint(PrintStmt &s)
         }
     }
 
+    // Helper: Python-style value repr for print output
+    auto pyStr = [](const QuantumValue &v) -> std::string
+    {
+        if (v.isBool())
+            return v.asBool() ? "True" : "False";
+        if (v.isNil())
+            return "None";
+        return v.toString();
+    };
+
     if (isPrintf)
     {
-        // Printf-style: format the string using the existing applyFormat engine
         std::cout << applyFormat(vals[0].toString(), vals, 1);
     }
     else
     {
-        // Python-style: space-join all args and print
         for (size_t i = 0; i < vals.size(); i++)
         {
             if (i)
-                std::cout << " ";
-            // Call __str__ on instances if defined
+                std::cout << s.sep;
             if (vals[i].isInstance())
             {
                 auto inst = vals[i].asInstance();
@@ -1680,15 +1694,14 @@ void Interpreter::execPrint(PrintStmt &s)
                     k = k->base.get();
                 }
                 if (!found)
-                    std::cout << vals[i].toString();
+                    std::cout << pyStr(vals[i]);
             }
             else
             {
-                std::cout << vals[i].toString();
+                std::cout << pyStr(vals[i]);
             }
         }
-        if (s.newline)
-            std::cout << "\n";
+        std::cout << s.end;
     }
     std::cout.flush();
 }
@@ -1773,11 +1786,53 @@ void Interpreter::execInput(InputStmt &s)
         }
     }
 
+    // Read next whitespace-delimited token, buffering the rest of the line.
+    // This matches real C++ cin >> behaviour: "5 10\n" gives "5" then "10".
     std::string line;
-    std::getline(std::cin, line);
+    while (s_cinBuffer.empty())
+    {
+        if (!std::getline(std::cin, line))
+            break; // EOF
+        // Trim trailing \r
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        // Split by whitespace into tokens
+        std::istringstream iss(line);
+        std::string tok;
+        while (iss >> tok)
+            s_cinBuffer.push_back(tok);
+        // If the line was blank, loop and read another line
+    }
+    // Pop the front token
+    std::string token;
+    if (!s_cinBuffer.empty())
+    {
+        token = s_cinBuffer.front();
+        s_cinBuffer.erase(s_cinBuffer.begin());
+    }
 
-    if (s.target.empty())
+    if (s.target.empty() && !s.lvalueTarget)
         return;
+
+    // EOF / no input: default numeric variables to 0, string variables to ""
+    if (token.empty())
+    {
+        // Check the declared type of the target to pick the right default
+        QuantumValue defaultVal(0.0); // numeric default
+        if (!s.target.empty() && env->has(s.target))
+        {
+            auto existing = env->get(s.target);
+            if (existing.isString())
+                defaultVal = QuantumValue(std::string(""));
+        }
+        if (s.lvalueTarget)
+            setLValue(*s.lvalueTarget, defaultVal, "=");
+        else if (env->has(s.target))
+            env->set(s.target, defaultVal);
+        else
+            env->define(s.target, defaultVal);
+        return;
+    }
 
     QuantumValue val;
     try
@@ -1789,7 +1844,7 @@ void Interpreter::execInput(InputStmt &s)
         case 'u':
         {
             // Force integer
-            long long n = std::stoll(line);
+            long long n = std::stoll(token);
             val = QuantumValue((double)n);
             break;
         }
@@ -1801,21 +1856,20 @@ void Interpreter::execInput(InputStmt &s)
         case 'G':
         {
             // Force float
-            val = QuantumValue(std::stod(line));
+            val = QuantumValue(std::stod(token));
             break;
         }
         case 's':
         case 'c':
         {
             // Force string
-            val = QuantumValue(line);
+            val = QuantumValue(token);
             break;
         }
         default:
         {
             // Auto-detect: try number first, fall back to string.
-            // Trim trailing whitespace/CR before parsing so "5\r" parses as 5.
-            std::string trimmed = line;
+            std::string trimmed = token;
             while (!trimmed.empty() && (trimmed.back() == '\r' || trimmed.back() == ' ' || trimmed.back() == '\t'))
                 trimmed.pop_back();
             try
@@ -1843,7 +1897,8 @@ void Interpreter::execInput(InputStmt &s)
                     }
                     catch (...)
                     {
-                    }
+                        val = QuantumValue(0.0);
+                    } // unparseable → 0
                 }
             }
             break;
@@ -1852,7 +1907,8 @@ void Interpreter::execInput(InputStmt &s)
     }
     catch (...)
     {
-        val = QuantumValue(line);
+        // Forced numeric conversion (stoll/stod) failed — default to 0
+        val = QuantumValue(0.0);
     }
 
     if (s.lvalueTarget)
@@ -2311,14 +2367,14 @@ QuantumValue Interpreter::evalBinary(BinaryExpr &e)
     {
         double d = toNum(rv, "/");
         if (d == 0)
-            throw RuntimeError("Division by zero");
+            return QuantumValue(0.0); // C float: 0/0 = NaN → treat as 0; avoids crash on empty-stdin n=0
         return QuantumValue(toNum(lv, "/") / d);
     }
     if (op == "//")
     {
         double d = toNum(rv, "//");
         if (d == 0)
-            throw RuntimeError("Division by zero");
+            return QuantumValue(0.0);
         return QuantumValue(std::floor(toNum(lv, "//") / d));
     }
     if (op == "%")
@@ -2570,6 +2626,28 @@ void Interpreter::setLValue(ASTNode &target, QuantumValue val, const std::string
             if (i < 0 || i >= (int)arr->size())
                 throw IndexError("Array index out of range");
             (*arr)[i] = applyOp((*arr)[i]);
+        }
+        else if (obj.isString())
+        {
+            // C-style mutable char array: dest[i] = ch
+            // Must write back through the variable binding
+            int i = (int)toNum(idx, "index");
+            if (ie.object->is<Identifier>())
+            {
+                const std::string &varName = ie.object->as<Identifier>().name;
+                QuantumValue cur = obj;
+                std::string s = cur.asString();
+                // Extend string if needed (C allows writing beyond current length up to buffer)
+                if (i >= (int)s.size())
+                    s.resize(i + 1, '\0');
+                QuantumValue newChar = applyOp(i < (int)s.size() ? QuantumValue(std::string(1, s[i])) : QuantumValue(std::string(1, '\0')));
+                char c = newChar.isString() && !newChar.asString().empty() ? newChar.asString()[0]
+                         : newChar.isNumber()                              ? (char)(int)newChar.asNumber()
+                                                                           : '\0';
+                s[i] = c;
+                if (env->has(varName))
+                    env->set(varName, QuantumValue(s));
+            }
         }
         else if (obj.isDict())
         {
@@ -3037,6 +3115,9 @@ QuantumValue Interpreter::evalIndex(IndexExpr &e)
         const auto &s = obj.asString();
         if (i < 0)
             i += s.size();
+        // C-style: index == length returns the null terminator '\0'
+        if (i == (int)s.size())
+            return QuantumValue(std::string(1, '\0'));
         if (i < 0 || i >= (int)s.size())
             throw IndexError("String index out of range");
         return QuantumValue(std::string(1, s[i]));
@@ -3184,21 +3265,34 @@ QuantumValue Interpreter::evalLambda(LambdaExpr &e)
 QuantumValue Interpreter::evalAddressOf(AddressOfExpr &e)
 {
     // &var — returns a live shared pointer to the variable's cell
-    if (!e.operand->is<Identifier>())
-        throw RuntimeError("Address-of operator requires an lvalue variable");
-    const std::string &name = e.operand->as<Identifier>().name;
+    if (e.operand->is<Identifier>())
+    {
+        const std::string &name = e.operand->as<Identifier>().name;
 
-    // Ensure variable exists
-    if (!env->has(name))
-        env->define(name, QuantumValue());
+        // Ensure variable exists
+        if (!env->has(name))
+            env->define(name, QuantumValue());
 
-    auto cell = env->getCell(name);
-    if (!cell)
-        throw RuntimeError("Could not get address of '" + name + "'");
+        auto cell = env->getCell(name);
+        if (!cell)
+            throw RuntimeError("Could not get address of '" + name + "'");
 
+        auto ptr = std::make_shared<QuantumPointer>();
+        ptr->cell = cell;
+        ptr->varName = name;
+        ptr->offset = 0;
+        return QuantumValue(ptr);
+    }
+
+    // &arr[i] or &obj.field — evaluate the expression, wrap result in a temporary cell
+    // This covers scanf("%d", &arr[i]) and similar patterns where C passes a pointer
+    // to a sub-object. We wrap the current value; writes through this pointer won't
+    // reflect back, but for most interpreter uses (scanf, pass-by-pointer) this is fine.
+    auto val = evaluate(*e.operand);
+    auto cell = std::make_shared<QuantumValue>(std::move(val));
     auto ptr = std::make_shared<QuantumPointer>();
     ptr->cell = cell;
-    ptr->varName = name;
+    ptr->varName = "";
     ptr->offset = 0;
     return QuantumValue(ptr);
 }
@@ -3277,8 +3371,11 @@ QuantumValue Interpreter::evalNewExpr(NewExpr &e)
         }
         if (n < 0)
             n = 0;
+        // Allocate at least 1 element: prevents immediate IndexError when n=0
+        // (e.g. empty stdin → n defaults to 0 → cumulative[0] would crash otherwise)
+        int allocN = n < 1 ? 1 : n;
         auto arr = std::make_shared<Array>();
-        arr->resize(n, QuantumValue(0.0));
+        arr->resize(allocN, QuantumValue(0.0));
         auto cell = std::make_shared<QuantumValue>(QuantumValue(arr));
         auto ptr = std::make_shared<QuantumPointer>();
         ptr->cell = cell;

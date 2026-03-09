@@ -18,6 +18,8 @@ private:
     static const std::unordered_map<std::string, TokenType> keywords;
 
     std::vector<Token> pendingTokens_; // used for f-string expansion
+    // C preprocessor #define macros: name → replacement token list
+    std::unordered_map<std::string, std::vector<Token>> defines_;
 
     char current() const;
     char peek(int offset = 1) const;

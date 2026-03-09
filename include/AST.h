@@ -201,6 +201,8 @@ struct PrintStmt
 {
     std::vector<ASTNodePtr> args;
     bool newline;
+    std::string sep = " ";  // Python default: space between args
+    std::string end = "\n"; // Python default: newline at end
 };
 
 struct InputStmt

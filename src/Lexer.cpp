@@ -358,31 +358,44 @@ Token Lexer::readIdentifierOrKeyword()
                 bool inFormat = false;
                 while (pos < src.size() && depth > 0)
                 {
-                    if (current() == '{') depth++;
-                    else if (current() == '}') {
+                    if (current() == '{')
+                        depth++;
+                    else if (current() == '}')
+                    {
                         depth--;
-                        if (depth == 0) { advance(); break; }
+                        if (depth == 0)
+                        {
+                            advance();
+                            break;
+                        }
                     }
-                    
+
                     // Only start formatting if we are at the top level of the interpolation
                     // to prevent matching dict colons like {"a": 1}
-                    if (depth == 1 && current() == ':' && !inFormat) {
+                    if (depth == 1 && current() == ':' && !inFormat)
+                    {
                         inFormat = true;
                         advance();
                         continue;
                     }
 
-                    if (inFormat) {
+                    if (inFormat)
+                    {
                         fmtPart += current();
-                    } else {
+                    }
+                    else
+                    {
                         exprPart += current();
                     }
                     advance();
                 }
-                
-                if (inFormat) {
+
+                if (inFormat)
+                {
                     raw += "${__format__(" + exprPart + ", \"" + fmtPart + "\")}";
-                } else {
+                }
+                else
+                {
                     raw += "${" + exprPart + "}";
                 }
             }
@@ -423,6 +436,21 @@ Token Lexer::readIdentifierOrKeyword()
 
     auto it = keywords.find(id);
     TokenType type = (it != keywords.end()) ? it->second : TokenType::IDENTIFIER;
+
+    // C preprocessor macro expansion: if this identifier was #defined, substitute it
+    auto dit = defines_.find(id);
+    if (dit != defines_.end() && !dit->second.empty())
+    {
+        // Single-token macro (most common: #define ROWS 18, #define RIGHT 3)
+        if (dit->second.size() == 1)
+            return dit->second[0]; // return the replacement token directly
+        // Multi-token macro: push all but first into pendingTokens_
+        pendingTokens_.insert(pendingTokens_.begin(),
+                              dit->second.begin() + 1,
+                              dit->second.end());
+        return dit->second[0];
+    }
+
     return Token(type, id, startLine, startCol);
 }
 
@@ -448,7 +476,77 @@ std::vector<Token> Lexer::tokenize()
 
         if (c == '#')
         {
-            skipComment();
+            advance(); // consume the '#' itself
+            // Skip horizontal whitespace after '#'
+            while (pos < src.size() && (current() == ' ' || current() == '\t'))
+                advance();
+            // Read the directive name
+            std::string directive;
+            while (pos < src.size() && std::isalpha(current()))
+                directive += advance();
+            if (directive == "define")
+            {
+                // Skip spaces
+                while (pos < src.size() && (current() == ' ' || current() == '\t'))
+                    advance();
+                // Read macro name
+                std::string macroName;
+                while (pos < src.size() && (std::isalnum(current()) || current() == '_'))
+                    macroName += advance();
+                // Skip spaces between name and value
+                while (pos < src.size() && (current() == ' ' || current() == '\t'))
+                    advance();
+                // Read replacement value tokens until end of line
+                std::vector<Token> replacement;
+                while (pos < src.size() && current() != '\n' && current() != '\r')
+                {
+                    // Skip whitespace between tokens
+                    while (pos < src.size() && (current() == ' ' || current() == '\t'))
+                        advance();
+                    if (pos >= src.size() || current() == '\n' || current() == '\r')
+                        break;
+                    int tl = line, tc = col;
+                    char rc = current();
+                    if (std::isdigit(rc) || (rc == '-' && pos + 1 < src.size() && std::isdigit(src[pos + 1])))
+                    {
+                        replacement.push_back(readNumber());
+                    }
+                    else if (rc == '\'' || rc == '"')
+                    {
+                        replacement.push_back(readString(rc));
+                    }
+                    else if (std::isalpha(rc) || rc == '_')
+                    {
+                        // Read identifier — may itself be a previously defined macro
+                        std::string id;
+                        while (pos < src.size() && (std::isalnum(current()) || current() == '_'))
+                            id += advance();
+                        // Check if this identifier is itself a macro (simple one-level expansion)
+                        auto dit = defines_.find(id);
+                        if (dit != defines_.end())
+                        {
+                            for (auto &t : dit->second)
+                                replacement.push_back(t);
+                        }
+                        else
+                        {
+                            replacement.emplace_back(TokenType::IDENTIFIER, id, tl, tc);
+                        }
+                    }
+                    else
+                    {
+                        // Operator/punctuation — skip rest of line to keep things simple
+                        while (pos < src.size() && current() != '\n' && current() != '\r')
+                            advance();
+                        break;
+                    }
+                }
+                if (!macroName.empty())
+                    defines_[macroName] = std::move(replacement);
+            }
+            // Skip rest of directive line (#include, #ifdef, #ifndef, #endif, #else, #undef, etc.)
+            while (pos < src.size() && current() != '\n' && current() != '\r')
+                advance();
             continue;
         }
 
@@ -478,7 +576,16 @@ std::vector<Token> Lexer::tokenize()
                 pendingTokens_.clear();
             }
             else
+            {
                 rawTokens.push_back(tok);
+                // Flush any extra tokens from multi-token macro expansion
+                if (!pendingTokens_.empty())
+                {
+                    for (auto &pt : pendingTokens_)
+                        rawTokens.push_back(pt);
+                    pendingTokens_.clear();
+                }
+            }
             continue;
         }
 
@@ -577,9 +684,6 @@ std::vector<Token> Lexer::tokenize()
             else
                 rawTokens.emplace_back(TokenType::SLASH, "/", startLine, startCol);
             break;
-        case '%':
-            rawTokens.emplace_back(TokenType::PERCENT, "%", startLine, startCol);
-            break;
         case '=':
             if (current() == '=')
             {
@@ -649,6 +753,11 @@ std::vector<Token> Lexer::tokenize()
                 advance();
                 rawTokens.emplace_back(TokenType::AND_AND, "&&", startLine, startCol);
             }
+            else if (current() == '=')
+            {
+                advance();
+                rawTokens.emplace_back(TokenType::AND_ASSIGN, "&=", startLine, startCol);
+            }
             else
                 rawTokens.emplace_back(TokenType::BIT_AND, "&", startLine, startCol);
             break;
@@ -658,14 +767,34 @@ std::vector<Token> Lexer::tokenize()
                 advance();
                 rawTokens.emplace_back(TokenType::OR_OR, "||", startLine, startCol);
             }
+            else if (current() == '=')
+            {
+                advance();
+                rawTokens.emplace_back(TokenType::OR_ASSIGN, "|=", startLine, startCol);
+            }
             else
                 rawTokens.emplace_back(TokenType::BIT_OR, "|", startLine, startCol);
             break;
         case '^':
-            rawTokens.emplace_back(TokenType::BIT_XOR, "^", startLine, startCol);
+            if (current() == '=')
+            {
+                advance();
+                rawTokens.emplace_back(TokenType::XOR_ASSIGN, "^=", startLine, startCol);
+            }
+            else
+                rawTokens.emplace_back(TokenType::BIT_XOR, "^", startLine, startCol);
             break;
         case '~':
             rawTokens.emplace_back(TokenType::BIT_NOT, "~", startLine, startCol);
+            break;
+        case '%':
+            if (current() == '=')
+            {
+                advance();
+                rawTokens.emplace_back(TokenType::MOD_ASSIGN, "%=", startLine, startCol);
+            }
+            else
+                rawTokens.emplace_back(TokenType::PERCENT, "%", startLine, startCol);
             break;
         case '(':
             rawTokens.emplace_back(TokenType::LPAREN, "(", startLine, startCol);
