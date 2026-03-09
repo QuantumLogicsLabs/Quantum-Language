@@ -1,194 +1,175 @@
 ================================================================================
   Quantum Language — Test Results
 ================================================================================
-  Directory : C:\Programming\Quantum Language\examples
-  Total     : 101
-  Passed    : 44
-  Failed    : 57
+  Directory : C:\Programming\Quantum Language\examples\
+  Total     : 100
+  Passed    : 85
+  Failed    : 15
 ================================================================================
 
 ################################################################################
   FAILED FILE #1
 ################################################################################
-  Path  : examples\IO Operations.sa
-  Error : NameError: Undefined variable: 'print'
+  Path  : examples\C++\OOPs\Lab 3\solution\LAB03-TASK05.sa
+  Error : NameError: Undefined variable: 'make_unique'
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
-# Pattern Printer - Takes user input for rows and prints pattern
-# Demonstrates input handling and loops in Quantum Language
+#include <iostream>
+#include <memory>
+using namespace std;
 
-print("=== Pattern Printer ===")
-print("Enter number of rows for pattern:")
-
-# rows = num(rows)  # Convert input to number
-let rows;
-scanf("%d",&rows);
-print("Printing pattern with " + rows + " rows:")
-
-# Print increasing pattern
-for i in range(1, rows + 1) {
-    let line = ""
-    for j in range(1, i + 1) {
-        line = line + "*"
+void add(unique_ptr<int[]> &ptr, int &size, int &m)
+{
+    if (m < size)
+    {
+        cout << "Enter item code (1=Mushroom, 2=Star, 3=Fireball): ";
+        cin >> ptr[m];
+        m++;
     }
-    print(line)
+    else
+    {
+        cout << "Inventory is full!" << endl;
+    }
 }
-print("Pattern completed!")
+
+void remove(int &m)
+{
+    if (m == 0)
+    {
+        cout << "No item found" << endl;
+    }
+    else
+    {
+        m--;
+        cout << "Deleted....." << endl;
+    }
+}
+
+void display(unique_ptr<int[]> &ptr, int &m)
+{
+    if (m == 0)
+    {
+        cout << "No item found" << endl;
+    }
+    else
+    {
+        cout << "Mario's Inventory" << endl;
+        for (int i = 0; i < m; i++)
+        {
+            cout << "Item " << i + 1 << " is ";
+            if (ptr[i] == 1)
+                cout << "Mushroom";
+            else if (ptr[i] == 2)
+                cout << "Star";
+            else if (ptr[i] == 3)
+                cout << "Fireball";
+            cout << endl;
+        }
+    }
+}
+
+void sharedDemo()
+{
+    cout << "\nShared Ownership Demo" << endl;
+
+    shared_ptr<int> mushroom = make_shared<int>(1);
+    shared_ptr<int> star = make_shared<int>(2);
+
+    cout << "Mushroom use count: " << mushroom.use_count() << endl;
+    cout << "Star use count: " << star.use_count() << endl;
+
+    shared_ptr<int> backpack = mushroom;
+    shared_ptr<int> powerupList = mushroom;
+
+    cout << "After sharing Mushroom:" << endl;
+    cout << "Mushroom use count: " << mushroom.use_count() << endl;
+    cout << "Star use count: " << star.use_count() << endl;
+}
+
+void weakDemo()
+{
+    cout << "\nWeak Ownership Demo" << endl;
+
+    weak_ptr<int> weakItem;
+
+    {
+        shared_ptr<int> fireball = make_shared<int>(3);
+        cout << "Fireball use count: " << fireball.use_count() << endl;
+
+        weakItem = fireball;
+        cout << "After creating weak_ptr, Fireball use count: " << fireball.use_count() << endl;
+
+        if (auto locked = weakItem.lock())
+        {
+            cout << "Weak pointer locked, value: " << *locked << endl;
+        }
+
+        cout << "Fireball going out of scope..." << endl;
+    }
+
+    cout << "After scope ended:" << endl;
+    if (auto locked = weakItem.lock())
+    {
+        cout << "Weak pointer locked" << endl;
+    }
+    else
+    {
+        cout << "Weak pointer cannot be locked (item deleted)" << endl;
+    }
+}
+
+int main()
+{
+    int size;
+    cout << "Enter size of Mario's Inventory: ";
+    cin >> size;
+    unique_ptr<int[]> ptr = make_unique<int[]>(size);
+    int m = 0;
+    int choice;
+    do
+    {
+        cout << "\n1. Add item\n2. Remove item\n3. Display inventory\n4. Shared ownership demo\n5. Weak ownership demo\n6. Exit" << endl;
+        cout << "Enter your choice: ";
+        cin >> choice;
+        if (choice == 1)
+        {
+            add(ptr, size, m);
+        }
+        else if (choice == 2)
+        {
+            remove(m);
+        }
+        else if (choice == 3)
+        {
+            display(ptr, m);
+        }
+        else if (choice == 4)
+        {
+            sharedDemo();
+        }
+        else if (choice == 5)
+        {
+            weakDemo();
+        }
+        else
+        {
+            break;
+        }
+    } while (choice != 6);
+
+    return 0;
+}
 ################################################################################
 
 ################################################################################
   FAILED FILE #2
 ################################################################################
-  Path  : examples\Javascript\10_dungeon_generator.sa
-  Error : ParseError: Unexpected token: ','
-  Line  : 2:13
-  Code  : const W = 60, H = 24;
-                      ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 5. Procedural Dungeon Generator
-const W = 60, H = 24;
-const NUM_ROOMS = 10;
-
-function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-function createGrid() {
-  return Array.from({ length: H }, () => Array(W).fill("░"));
-}
-
-function placeRoom(grid, room) {
-  for (let y = room.y; y < room.y + room.h; y++)
-    for (let x = room.x; x < room.x + room.w; x++)
-      grid[y][x] = " ";
-  // Walls
-  for (let x = room.x; x < room.x + room.w; x++) {
-    grid[room.y][x] = "─"; grid[room.y + room.h - 1][x] = "─";
-  }
-  for (let y = room.y; y < room.y + room.h; y++) {
-    grid[y][room.x] = "│"; grid[y][room.x + room.w - 1] = "│";
-  }
-  grid[room.y][room.x] = "┌"; grid[room.y][room.x + room.w - 1] = "┐";
-  grid[room.y + room.h - 1][room.x] = "└"; grid[room.y + room.h - 1][room.x + room.w - 1] = "┘";
-}
-
-function carveCorridor(grid, x1, y1, x2, y2) {
-  while (x1 !== x2) { grid[y1][x1] = "·"; x1 += x1 < x2 ? 1 : -1; }
-  while (y1 !== y2) { grid[y1][x1] = "·"; y1 += y1 < y2 ? 1 : -1; }
-}
-
-function center(room) {
-  return { x: Math.floor(room.x + room.w / 2), y: Math.floor(room.y + room.h / 2) };
-}
-
-const grid = createGrid();
-const rooms = [];
-
-for (let i = 0; i < NUM_ROOMS * 10 && rooms.length < NUM_ROOMS; i++) {
-  const w = randInt(6, 14), h = randInt(4, 8);
-  const x = randInt(1, W - w - 1), y = randInt(1, H - h - 1);
-  const newRoom = { x, y, w, h };
-  const overlap = rooms.some(r =>
-    x < r.x + r.w + 1 && x + w + 1 > r.x && y < r.y + r.h + 1 && y + h + 1 > r.y
-  );
-  if (!overlap) rooms.push(newRoom);
-}
-
-rooms.forEach((room, i) => {
-  placeRoom(grid, room);
-  if (i > 0) {
-    const c1 = center(rooms[i - 1]), c2 = center(room);
-    carveCorridor(grid, c1.x, c1.y, c2.x, c2.y);
-  }
-});
-
-// Place player @ start, exit @ last room
-const start = center(rooms[0]), exit = center(rooms[rooms.length - 1]);
-grid[start.y][start.x] = "@";
-grid[exit.y][exit.x] = "★";
-
-console.log("🏰 Procedural Dungeon (@ = Player, ★ = Exit)\n");
-console.log(grid.map(row => row.join("")).join("\n"));
-console.log(`\nRooms generated: ${rooms.length}`);
-
-################################################################################
-
-################################################################################
-  FAILED FILE #3
-################################################################################
-  Path  : examples\Javascript\11_binary_search_tree.sa
-  Error : ParseError: Unexpected token: '}'
-  Line  : 45:1
-  Code  : }
-          ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 1. Binary Search Tree with Traversals & Visualization
-class Node {
-  constructor(val) { this.val = val; this.left = this.right = null; }
-}
-
-class BST {
-  constructor() { this.root = null; }
-
-  insert(val) {
-    const node = new Node(val);
-    if (!this.root) { this.root = node; return; }
-    let cur = this.root;
-    while (true) {
-      if (val < cur.val) {
-        if (!cur.left) { cur.left = node; break; }
-        cur = cur.left;
-      } else {
-        if (!cur.right) { cur.right = node; break; }
-        cur = cur.right;
-      }
-    }
-  }
-
-  inOrder(node = this.root, result = []) {
-    if (node) { this.inOrder(node.left, result); result.push(node.val); this.inOrder(node.right, result); }
-    return result;
-  }
-
-  preOrder(node = this.root, result = []) {
-    if (node) { result.push(node.val); this.preOrder(node.left, result); this.preOrder(node.right, result); }
-    return result;
-  }
-
-  postOrder(node = this.root, result = []) {
-    if (node) { this.postOrder(node.left, result); this.postOrder(node.right, result); result.push(node.val); }
-    return result;
-  }
-
-  print(node = this.root, prefix = "", isLeft = true) {
-    if (!node) return;
-    console.log(prefix + (isLeft ? "├── " : "└── ") + node.val);
-    this.print(node.left,  prefix + (isLeft ? "│   " : "    "), true);
-    this.print(node.right, prefix + (isLeft ? "│   " : "    "), false);
-  }
-}
-
-const tree = new BST();
-[50, 30, 70, 20, 40, 60, 80, 10, 25, 35, 45].forEach(v => tree.insert(v));
-
-console.log("🌳 Binary Search Tree:\n");
-tree.print(tree.root, "", false);
-console.log("\nIn-Order   (sorted):", tree.inOrder().join(" → "));
-console.log("Pre-Order  (root first):", tree.preOrder().join(" → "));
-console.log("Post-Order (root last):", tree.postOrder().join(" → "));
-
-################################################################################
-
-################################################################################
-  FAILED FILE #4
-################################################################################
   Path  : examples\Javascript\12_math_interpreter.sa
-  Error : LexError: Unexpected character: \
-  Line  : 1
-  Code  : // 2. Mini Math Expression Interpreter (Lexer → Parser → Evaluator)
+  Error : ParseError: Unexpected token: '.'
+  Line  : 27:60
+  Code  :   const eat = (v) => { const t = tokens[pos++]; if (v && t?.val !== v) throw `Expected ${v}`; return t; };
+                                                                     ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -287,151 +268,13 @@ for (const line of programs) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #5
-################################################################################
-  Path  : examples\Javascript\13_solar_system.sa
-  Error : ParseError: Unexpected token: ','
-  Line  : 2:17
-  Code  : const WIDTH = 79, HEIGHT = 39;
-                          ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 3. ASCII Solar System Orbit Simulator
-const WIDTH = 79, HEIGHT = 39;
-const CX = Math.floor(WIDTH / 2), CY = Math.floor(HEIGHT / 2);
-
-const PLANETS = [
-  { name: "Mercury", symbol: "m", radius: 5,  speed: 0.24, angle: 0.0 },
-  { name: "Venus",   symbol: "v", radius: 9,  speed: 0.62, angle: 1.0 },
-  { name: "Earth",   symbol: "E", radius: 13, speed: 1.00, angle: 2.0 },
-  { name: "Mars",    symbol: "M", radius: 17, speed: 0.53, angle: 3.5 },
-  { name: "Jupiter", symbol: "J", radius: 24, speed: 0.08, angle: 1.2 },
-  { name: "Saturn",  symbol: "S", radius: 31, speed: 0.03, angle: 4.1 },
-];
-
-function drawFrame(t) {
-  const grid = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(" "));
-
-  // Draw orbits
-  PLANETS.forEach(p => {
-    for (let a = 0; a < Math.PI * 2; a += 0.05) {
-      const x = Math.round(CX + p.radius * 2 * Math.cos(a));
-      const y = Math.round(CY + p.radius * Math.sin(a));
-      if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) grid[y][x] = "·";
-    }
-  });
-
-  // Sun
-  grid[CY][CX] = "☀";
-
-  // Planets
-  PLANETS.forEach(p => {
-    const a = p.angle + t * p.speed * 0.1;
-    const x = Math.round(CX + p.radius * 2 * Math.cos(a));
-    const y = Math.round(CY + p.radius * Math.sin(a));
-    if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) grid[y][x] = p.symbol;
-  });
-
-  return grid.map(row => row.join("")).join("\n");
-}
-
-let t = 0;
-const legend = PLANETS.map(p => `${p.symbol}=${p.name}`).join("  ");
-
-const interval = setInterval(() => {
-  process.stdout.write("\x1b[H\x1b[2J");
-  console.log(`🪐 Solar System Simulator  [t=${t}]\n`);
-  console.log(drawFrame(t));
-  console.log(`\n  ${legend}`);
-  t++;
-  if (t > 200) { clearInterval(interval); console.log("\nSimulation complete."); }
-}, 80);
-
-################################################################################
-
-################################################################################
-  FAILED FILE #6
-################################################################################
-  Path  : examples\Javascript\14_dna_analyzer.sa
-  Error : ParseError: Unexpected token: '/'
-  Line  : 23:35
-  Code  :   dna = dna.toUpperCase().replace(/[^ATGC]/g, "");
-                                            ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 4. DNA Sequence Analyzer
-const COMPLEMENT = { A: "T", T: "A", G: "C", C: "G" };
-const CODONS = {
-  AUG:"Met(Start)", UAA:"Stop", UAG:"Stop", UGA:"Stop",
-  UUU:"Phe", UUC:"Phe", UUA:"Leu", UUG:"Leu",
-  CUU:"Leu", CUC:"Leu", CUA:"Leu", CUG:"Leu",
-  AUU:"Ile", AUC:"Ile", AUA:"Ile",
-  GUU:"Val", GUC:"Val", GUA:"Val", GUG:"Val",
-  UCU:"Ser", UCC:"Ser", UCA:"Ser", UCG:"Ser",
-  CCU:"Pro", CCC:"Pro", CCA:"Pro", CCG:"Pro",
-  ACU:"Thr", ACC:"Thr", ACA:"Thr", ACG:"Thr",
-  GCU:"Ala", GCC:"Ala", GCA:"Ala", GCG:"Ala",
-  UAU:"Tyr", UAC:"Tyr", CAU:"His", CAC:"His",
-  CAA:"Gln", CAG:"Gln", AAU:"Asn", AAC:"Asn",
-  AAA:"Lys", AAG:"Lys", GAU:"Asp", GAC:"Asp",
-  GAA:"Glu", GAG:"Glu", UGU:"Cys", UGC:"Cys",
-  UGG:"Trp", CGU:"Arg", CGC:"Arg", CGA:"Arg",
-  CGG:"Arg", AGA:"Arg", AGG:"Arg", AGU:"Ser",
-  AGC:"Ser", GGU:"Gly", GGC:"Gly", GGA:"Gly", GGG:"Gly",
-};
-
-function analyze(dna) {
-  dna = dna.toUpperCase().replace(/[^ATGC]/g, "");
-  const complement = dna.split("").map(b => COMPLEMENT[b]).join("");
-  const reverseComplement = complement.split("").reverse().join("");
-  const counts = { A: 0, T: 0, G: 0, C: 0 };
-  dna.split("").forEach(b => counts[b]++);
-  const gcContent = (((counts.G + counts.C) / dna.length) * 100).toFixed(1);
-
-  // Transcribe to mRNA
-  const mRNA = dna.replace(/T/g, "U");
-
-  // Translate from first AUG
-  const start = mRNA.indexOf("AUG");
-  const proteins = [];
-  if (start !== -1) {
-    for (let i = start; i <= mRNA.length - 3; i += 3) {
-      const codon = mRNA.slice(i, i + 3);
-      const aa = CODONS[codon] || "???";
-      proteins.push(`${codon}→${aa}`);
-      if (aa === "Stop") break;
-    }
-  }
-
-  return { length: dna.length, counts, gcContent, complement, reverseComplement, mRNA, proteins };
-}
-
-const sequence = "ATGAAAGCAATTTTCGTACTGAAAGGTTTTGTTGGTTTTCTTAAATAG";
-const result = analyze(sequence);
-
-console.log("🧬 DNA Sequence Analyzer\n");
-console.log(`Sequence (5'→3'):    ${sequence}`);
-console.log(`Length:              ${result.length} bp`);
-console.log(`Nucleotides:         A=${result.counts.A} T=${result.counts.T} G=${result.counts.G} C=${result.counts.C}`);
-console.log(`GC Content:          ${result.gcContent}%`);
-console.log(`Complement (3'→5'):  ${result.complement}`);
-console.log(`Rev. Complement:     ${result.reverseComplement}`);
-console.log(`mRNA Transcript:     ${result.mRNA}`);
-console.log(`\nProtein Translation:`);
-result.proteins.forEach((p, i) => console.log(`  Codon ${i + 1}: ${p}`));
-
-################################################################################
-
-################################################################################
-  FAILED FILE #7
+  FAILED FILE #3
 ################################################################################
   Path  : examples\Javascript\15_astar_pathfinding.sa
-  Error : ParseError: Unexpected token: ','
-  Line  : 2:18
-  Code  : const GRID_W = 40, GRID_H = 18;
-                           ^
+  Error : ParseError: Expected ':' (got ',')
+  Line  : 19:27
+  Code  :   const open = [{ ...start, g: 0, f: heuristic(start, end), parent: null }];
+                                    ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -516,253 +359,10 @@ if (result) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #8
-################################################################################
-  Path  : examples\Javascript\1_password_generator.sa
-  Error : ParseError: Expected member name (got 'from')
-  Line  : 13:22
-  Code  :   const rest = Array.from({ length: length - required.length }, () =>
-                               ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 1. Random Password Generator
-function generatePassword(length = 16) {
-  const chars = {
-    upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    lower: "abcdefghijklmnopqrstuvwxyz",
-    digits: "0123456789",
-    symbols: "!@#$%^&*()_+-=[]{}|;:,.<>?",
-  };
-  const all = Object.values(chars).join("");
-
-  // Guarantee at least one of each type
-  const required = Object.values(chars).map((c) => c[Math.floor(Math.random() * c.length)]);
-  const rest = Array.from({ length: length - required.length }, () =>
-    all[Math.floor(Math.random() * all.length)]
-  );
-
-  return [...required, ...rest].sort(() => Math.random() - 0.5).join("");
-}
-
-console.log("Generated passwords:");
-for (let i = 0; i < 5; i++) {
-  console.log(`  ${i + 1}. ${generatePassword(20)}`);
-}
-
-################################################################################
-
-################################################################################
-  FAILED FILE #9
-################################################################################
-  Path  : examples\Javascript\2_caesar_cipher.sa
-  Error : ParseError: Unexpected token: '/'
-  Line  : 4:23
-  Code  :   return text.replace(/[a-zA-Z]/g, (char) => {
-                                ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 2. Caesar Cipher Encoder / Decoder
-function caesar(text, shift, decode = false) {
-  if (decode) shift = (26 - shift) % 26;
-  return text.replace(/[a-zA-Z]/g, (char) => {
-    const base = char < "a" ? 65 : 97;
-    return String.fromCharCode(((char.charCodeAt(0) - base + shift) % 26) + base);
-  });
-}
-
-const message = "Hello, World! This is a secret message.";
-const shift = 13; // ROT13
-
-const encoded = caesar(message, shift);
-const decoded = caesar(encoded, shift, true);
-
-console.log("Original :", message);
-console.log("Encoded  :", encoded);
-console.log("Decoded  :", decoded);
-console.log("Match    :", message === decoded);
-
-################################################################################
-
-################################################################################
-  FAILED FILE #10
-################################################################################
-  Path  : examples\Javascript\3_countdown_timer.sa
-  Error : NameError: Undefined variable: 'String'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 3. Countdown Timer (Node.js)
-function formatTime(seconds) {
-  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
-  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
-  const s = String(seconds % 60).padStart(2, "0");
-  return `${h}:${m}:${s}`;
-}
-
-function countdown(durationSeconds) {
-  console.log(`Starting countdown from ${formatTime(durationSeconds)}`);
-  let remaining = durationSeconds;
-
-  const interval = setInterval(() => {
-    process.stdout.write(`\r⏱  ${formatTime(remaining)}  `);
-    if (remaining === 0) {
-      clearInterval(interval);
-      console.log("\n🔔 Time's up!");
-    }
-    remaining--;
-  }, 1000);
-}
-
-countdown(10); // 10-second demo countdown
-
-################################################################################
-
-################################################################################
-  FAILED FILE #11
-################################################################################
-  Path  : examples\Javascript\4_stats_calculator.sa
-  Error : ParseError: Unexpected token: '.'
-  Line  : 4:19
-  Code  :   const sorted = [...data].sort((a, b) => a - b);
-                            ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 4. Statistics Calculator
-function stats(data) {
-  if (!data.length) return null;
-  const sorted = [...data].sort((a, b) => a - b);
-  const n = data.length;
-  const sum = data.reduce((a, b) => a + b, 0);
-  const mean = sum / n;
-  const variance = data.reduce((acc, x) => acc + (x - mean) ** 2, 0) / n;
-  const mid = Math.floor(n / 2);
-  const median = n % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  const freq = data.reduce((map, v) => map.set(v, (map.get(v) || 0) + 1), new Map());
-  const maxFreq = Math.max(...freq.values());
-  const mode = [...freq.entries()].filter(([, f]) => f === maxFreq).map(([v]) => v);
-
-  return {
-    count: n,
-    sum: sum.toFixed(2),
-    min: sorted[0],
-    max: sorted[n - 1],
-    range: sorted[n - 1] - sorted[0],
-    mean: mean.toFixed(4),
-    median,
-    mode,
-    stdDev: Math.sqrt(variance).toFixed(4),
-  };
-}
-
-const dataset = [4, 8, 15, 16, 23, 42, 4, 8, 15, 16, 23, 42, 7];
-console.log("Dataset:", dataset);
-console.log("Stats:", stats(dataset));
-
-################################################################################
-
-################################################################################
-  FAILED FILE #12
-################################################################################
-  Path  : examples\Javascript\5_maze_generator.sa
-  Error : ParseError: Expected member name (got 'from')
-  Line  : 3:22
-  Code  :   const maze = Array.from({ length: rows }, () => Array(cols).fill("█"));
-                               ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 5. Maze Generator (Recursive Backtracking)
-function generateMaze(rows, cols) {
-  const maze = Array.from({ length: rows }, () => Array(cols).fill("█"));
-  const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
-  const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
-
-  function inBounds(r, c) {
-    return r >= 0 && r < rows && c >= 0 && c < cols;
-  }
-
-  function carve(r, c) {
-    visited[r][c] = true;
-    maze[r][c] = " ";
-    const shuffled = dirs.sort(() => Math.random() - 0.5);
-    for (const [dr, dc] of shuffled) {
-      const nr = r + dr, nc = c + dc;
-      if (inBounds(nr, nc) && !visited[nr][nc]) {
-        maze[r + dr / 2][c + dc / 2] = " "; // knock down wall
-        carve(nr, nc);
-      }
-    }
-  }
-
-  carve(1, 1);
-  maze[1][0] = "S"; // Start
-  maze[rows - 2][cols - 1] = "E"; // Exit
-
-  return maze.map((row) => row.join("")).join("\n");
-}
-
-console.log("🧩 Generated Maze (S = Start, E = Exit):\n");
-console.log(generateMaze(15, 31));
-
-################################################################################
-
-################################################################################
-  FAILED FILE #13
-################################################################################
-  Path  : examples\Javascript\6_game_of_life.sa
-  Error : ParseError: Unexpected token: ','
-  Line  : 2:16
-  Code  : const ROWS = 20, COLS = 60;
-                         ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 1. Conway's Game of Life (Terminal Animation)
-const ROWS = 20, COLS = 60;
-
-function randomGrid() {
-  return Array.from({ length: ROWS }, () =>
-    Array.from({ length: COLS }, () => (Math.random() < 0.3 ? 1 : 0))
-  );
-}
-
-function nextGen(grid) {
-  return grid.map((row, r) =>
-    row.map((cell, c) => {
-      const neighbors = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
-        .filter(([dr, dc]) => grid[r+dr]?.[c+dc] === 1).length;
-      return cell ? (neighbors === 2 || neighbors === 3 ? 1 : 0)
-                  : (neighbors === 3 ? 1 : 0);
-    })
-  );
-}
-
-function render(grid, gen) {
-  const frame = grid.map(row => row.map(c => c ? "█" : "·").join("")).join("\n");
-  process.stdout.write(`\x1b[H\x1b[2J`); // clear terminal
-  console.log(`Conway's Game of Life — Generation ${gen}\n${frame}`);
-}
-
-let grid = randomGrid();
-let gen = 0;
-const interval = setInterval(() => {
-  render(grid, gen++);
-  grid = nextGen(grid);
-  if (gen >= 100) { clearInterval(interval); console.log("\nDone."); }
-}, 100);
-
-################################################################################
-
-################################################################################
-  FAILED FILE #14
+  FAILED FILE #4
 ################################################################################
   Path  : examples\Javascript\7_markov_chain.sa
-  Error : LexError: Unexpected character: \
-  Line  : 1
-  Code  : // 2. Markov Chain Text Generator
+  Error : IndexError: Array index 0 out of range
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -809,418 +409,7 @@ console.log(generate(chain, 2, 60));
 ################################################################################
 
 ################################################################################
-  FAILED FILE #15
-################################################################################
-  Path  : examples\Javascript\8_mandelbrot.sa
-  Error : ParseError: Unexpected token: ','
-  Line  : 2:17
-  Code  : const WIDTH = 72, HEIGHT = 32;
-                          ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 3. Mandelbrot Set ASCII Renderer
-const WIDTH = 72, HEIGHT = 32;
-const MAX_ITER = 64;
-const CHARS = " .:;+=xX$&#@";
-
-function mandelbrot(cx, cy) {
-  let x = 0, y = 0, iter = 0;
-  while (x * x + y * y <= 4 && iter < MAX_ITER) {
-    [x, y] = [x * x - y * y + cx, 2 * x * y + cy];
-    iter++;
-  }
-  return iter;
-}
-
-function render() {
-  const xMin = -2.5, xMax = 1.0;
-  const yMin = -1.2, yMax = 1.2;
-  let output = "";
-
-  for (let row = 0; row < HEIGHT; row++) {
-    for (let col = 0; col < WIDTH; col++) {
-      const cx = xMin + (col / WIDTH) * (xMax - xMin);
-      const cy = yMin + (row / HEIGHT) * (yMax - yMin);
-      const iter = mandelbrot(cx, cy);
-      const charIdx = iter === MAX_ITER ? 0 : Math.floor((iter / MAX_ITER) * (CHARS.length - 1)) + 1;
-      output += CHARS[charIdx];
-    }
-    output += "\n";
-  }
-  return output;
-}
-
-console.log("🌀 Mandelbrot Set:\n");
-console.log(render());
-
-################################################################################
-
-################################################################################
-  FAILED FILE #16
-################################################################################
-  Path  : examples\Javascript\9_morse_code.sa
-  Error : LexError: Unexpected character: \
-  Line  : 1
-  Code  : // 4. Morse Code Translator (with audio beep sequences printed)
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-// 4. Morse Code Translator (with audio beep sequences printed)
-const MORSE = {
-  A:".-", B:"-...", C:"-.-.", D:"-..", E:".", F:"..-.", G:"--.", H:"....",
-  I:"..", J:".---", K:"-.-", L:".-..", M:"--", N:"-.", O:"---", P:".--.",
-  Q:"--.-", R:".-.", S:"...", T:"-", U:"..-", V:"...-", W:".--", X:"-..-",
-  Y:"-.--", Z:"--..", "0":"-----","1":".----","2":"..---","3":"...--",
-  "4":"....-","5":".....","6":"-....","7":"--...","8":"---..","9":"----.",
-  ".":".-.-.-", ",":"--..--", "?":"..--..", "!":"-.-.--", " ": "/"
-};
-
-const REVERSE = Object.fromEntries(Object.entries(MORSE).map(([k, v]) => [v, k]));
-
-function encode(text) {
-  return text.toUpperCase().split("").map(c => MORSE[c] || "?").join(" ");
-}
-
-function decode(morse) {
-  return morse.split(" ").map(token => token === "/" ? " " : (REVERSE[token] || "?")).join("");
-}
-
-function toBeeps(morse) {
-  return morse.replace(/\./g, "·").replace(/-/g, "—").replace(/\//g, " | ");
-}
-
-const text = "Hello World";
-const encoded = encode(text);
-const decoded = decode(encoded);
-
-console.log("📡 Morse Code Translator\n");
-console.log(`Original : ${text}`);
-console.log(`Encoded  : ${encoded}`);
-console.log(`Beeps    : ${toBeeps(encoded)}`);
-console.log(`Decoded  : ${decoded}`);
-
-################################################################################
-
-################################################################################
-  FAILED FILE #17
-################################################################################
-  Path  : examples\Javascript\Missing Letter Detector.sa
-  Error : TypeError: No member 'length' on nil
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-function fearNotLetter(str) {
-  for (let i = 0; i < str.length - 1; i++) {
-    // Compare ASCII codes of current and next letter
-    if (str.charCodeAt(i + 1) - str.charCodeAt(i) > 1) {
-      // Return the missing letter
-      return String.fromCharCode(str.charCodeAt(i) + 1);
-    }
-  }
-  // If no missing letter, return undefined
-  return undefined;
-}
-
-// Test cases
-console.log(fearNotLetter("abce")); // "d"
-console.log(fearNotLetter("abcdefghjklmno")); // "i"
-console.log(fearNotLetter("stvwx")); // "u"
-console.log(fearNotLetter("bcdf")); // "e"
-console.log(fearNotLetter("abcdefghijklmnopqrstuvwxyz")); // undefined
-
-################################################################################
-
-################################################################################
-  FAILED FILE #18
-################################################################################
-  Path  : examples\Python\Adjacency List to Matrix Converter.sa
-  Error : TypeError: len() not supported for type nil
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def adjacency_list_to_matrix(adj_list):
-    n = len(adj_list)  # Number of nodes
-    matrix = [
-        [0 for _ in range(n)] for _ in range(n)
-    ]  # Initialize n x n matrix with 0s
-
-    # Fill matrix based on adjacency list
-    for node, neighbors in adj_list.items():
-        for neighbor in neighbors:
-            matrix[node][neighbor] = 1
-
-    # Print each row
-    for row in matrix:
-        print(row)
-
-    return matrix
-
-
-# Example usage
-adjacency_list_to_matrix({0: [1, 2], 1: [2], 2: [0, 3], 3: [2]})
-
-################################################################################
-
-################################################################################
-  FAILED FILE #19
-################################################################################
-  Path  : examples\Python\Binary Search Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def binary_search(search_list, value):
-    path_to_target = []
-    low = 0
-    high = len(search_list) - 1
-
-    while low <= high:
-        mid = (low + high) // 2
-        value_at_middle = search_list[mid]
-        path_to_target.append(value_at_middle)
-
-        if value == value_at_middle:
-            return path_to_target, f"Value found at index {mid}"
-        elif value > value_at_middle:
-            low = mid + 1
-        else:
-            high = mid - 1
-
-    return [], "Value not found"
-
-
-print(binary_search([1, 2, 3, 4, 5], 3))
-print(binary_search([1, 2, 3, 4, 5, 9], 4))
-print(binary_search([1, 3, 5, 9, 14, 22], 10))
-
-################################################################################
-
-################################################################################
-  FAILED FILE #20
-################################################################################
-  Path  : examples\Python\Breadth-First Search Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def gen_parentheses(pairs):
-    if not isinstance(pairs, int):
-        return "The number of pairs should be an integer"
-    if pairs < 1:
-        return "The number of pairs should be at least 1"
-
-    queue = [("", 0, 0)]
-    result = []
-    while queue:
-        current, opens_used, closes_used = queue.pop(0)
-        if len(current) == 2 * pairs:
-            result.append(current)
-        else:
-            if opens_used < pairs:
-                queue.append((current + "(", opens_used + 1, closes_used))
-            if closes_used < opens_used:
-                queue.append((current + ")", opens_used, closes_used + 1))
-
-    return result
-
-
-print(gen_parentheses(3))
-
-################################################################################
-
-################################################################################
-  FAILED FILE #21
-################################################################################
-  Path  : examples\Python\Caesar Cipher.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def caesar(text, shift, encryptt=True):
-    if not isinstance(shift, int):
-        return "Shift must be an integer value."
-
-    if shift < 1 or shift > 25:
-        return "Shift must be an integer between 1 and 25."
-
-    alphabet = "abcdefghijklmnopqrstuvwxyz"
-
-    if not encryptt:
-        shift = -shift
-
-    shifted_alphabet = alphabet[shift:] + alphabet[:shift]
-
-    translation_table = str.maketrans(
-        alphabet + alphabet.upper(), shifted_alphabet + shifted_alphabet.upper()
-    )
-
-    return text.translate(translation_table)
-
-
-def encryptt(text, shift):
-    return caesar(text, shift)
-
-
-def decryptt(text, shift):
-    return caesar(text, shift, encryptt=False)
-
-
-encrypted_text = "Pbhentr vf sbhaq va hayvxryl cynprf."
-decrypted_text = decryptt(encrypted_text, 13)
-print(decrypted_text)
-
-################################################################################
-
-################################################################################
-  FAILED FILE #22
-################################################################################
-  Path  : examples\Python\Depth-First Search Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def dfs(adj_matrix, start):
-    n = len(adj_matrix)
-    # basic validation
-    if not isinstance(adj_matrix, list) or n == 0:
-        return []
-    if not (0 <= start < n):
-        return []
-
-    visited = []
-
-    def visit(node):
-        if node in visited:
-            return
-        visited.append(node)
-        # iterate neighbors from highest index down to 0 so higher-numbered neighbors are explored first
-        for neighbor in range(n - 1, -1, -1):
-            if adj_matrix[node][neighbor] == 1 and neighbor not in visited:
-                visit(neighbor)
-
-    visit(start)
-    return visited
-
-
-# Test cases (expected results shown in comments)
-print(
-    dfs([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]], 1)
-)  # -> [1, 2, 3, 0]
-
-print(
-    dfs([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0]], 3)
-)  # -> [3, 2, 1, 0]
-
-print(dfs([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], 3))  # -> [3, 2]
-
-print(dfs([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], 0))  # -> [0, 1]
-
-print(dfs([[0, 1, 0, 0], [1, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 0]], 3))  # -> [3]
-
-################################################################################
-
-################################################################################
-  FAILED FILE #23
-################################################################################
-  Path  : examples\Python\Discount Calculator.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-from abc import ABC, abstractmethod
-from typing import List
-
-
-# Product class
-class Product:
-    def __init__(self, name: str, price: float) -> None:
-        self.name = name
-        self.price = price
-
-    def __str__(self) -> str:
-        return f"{self.name} - ${self.price:.2f}"
-
-
-# Abstract base class for discount strategies
-class DiscountStrategy(ABC):
-    @abstractmethod
-    def is_applicable(self, product: Product, user_tier: str) -> bool:
-        pass
-
-    @abstractmethod
-    def apply_discount(self, product: Product) -> float:
-        pass
-
-
-# Percentage-based discount
-class PercentageDiscount(DiscountStrategy):
-    def __init__(self, percent: int) -> None:
-        self.percent = percent
-
-    def is_applicable(self, product: Product, user_tier: str) -> bool:
-        # Limit the discount to 70% max
-        return self.percent <= 70
-
-    def apply_discount(self, product: Product) -> float:
-        return product.price * (1 - self.percent / 100)
-
-
-# Fixed amount discount
-class FixedAmountDiscount(DiscountStrategy):
-    def __init__(self, amount: float) -> None:
-        self.amount = amount
-
-    def is_applicable(self, product: Product, user_tier: str) -> bool:
-        # Only applicable if discount is less than 90% of price
-        return product.price * 0.9 > self.amount
-
-    def apply_discount(self, product: Product) -> float:
-        return product.price - self.amount
-
-
-# Premium user discount
-class PremiumUserDiscount(DiscountStrategy):
-    def is_applicable(self, product: Product, user_tier: str) -> bool:
-        return user_tier.lower() == "premium"
-
-    def apply_discount(self, product: Product) -> float:
-        return product.price * 0.8
-
-
-# Discount engine to calculate the best price
-class DiscountEngine:
-    def __init__(self, strategies: List[DiscountStrategy]) -> None:
-        self.strategies = strategies
-
-    def calculate_best_price(self, product: Product, user_tier: str) -> float:
-        prices = [product.price]  # start with original price
-
-        for strategy in self.strategies:
-            if strategy.is_applicable(product, user_tier):
-                discounted_price = strategy.apply_discount(product)
-                prices.append(discounted_price)
-
-        return min(prices)  # return the lowest price
-
-
-# Main program
-if __name__ == "__main__":
-    product = Product("Wireless Mouse", 50.0)
-    user_tier = "Premium"
-
-    strategies = [PercentageDiscount(10), FixedAmountDiscount(5), PremiumUserDiscount()]
-
-    engine = DiscountEngine(strategies)
-    best_price = engine.calculate_best_price(product, user_tier)
-
-    # Final output
-    print(f"Best price for {product.name} for {user_tier} user: ${best_price:.2f}")
-
-################################################################################
-
-################################################################################
-  FAILED FILE #24
+  FAILED FILE #5
 ################################################################################
   Path  : examples\Python\Email Simulator.sa
   Error : LexError: Unterminated string literal
@@ -1338,250 +527,13 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #25
-################################################################################
-  Path  : examples\Python\Functions.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-# Quantum (original)
-fn add(a, b) { return a + b }
-
-# Python style
-def greet(name):
-    return "Hello " + name
-
-def factorial(n):
-    if (n <= 1){
-        return 1
-    }
-    return n * factorial(n - 1)
-
-# JavaScript style
-function multiply(a, b) {
-    return a * b
-}
-
-# JS anonymous assigned to variable
-square = function(n) { return n * n }
-
-# Arrow function — expression body (implicit return)
-double = (x) => x * 2
-add = (a, b) => a + b
-
-# Arrow function — block body
-clamp = (x, min, max) => {
-    if x < min: return min
-    if x > max: return max
-    return x
-}
-
-# Single-param arrow, no parens
-triple = x => x * 3
-
-# All are callable identically
-print(greet("World"))
-print(double(5))
-print(triple(4))
-################################################################################
-
-################################################################################
-  FAILED FILE #26
-################################################################################
-  Path  : examples\Python\Hash Table.sa
-  Error : ParseError: Unexpected token: 'DEDENT'
-  Line  : 9:21
-  Code  :         return total
-                              ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-class HashTable:
-    def __init__(self):
-        self.collection = {}
-
-    def hash(self, string):
-        total = 0
-        for char in string:
-            total += ord(char)
-        return total
-
-    def add(self, key, value):
-        hashed_key = self.hash(key)
-
-        if hashed_key not in self.collection:
-            self.collection[hashed_key] = {}
-
-        self.collection[hashed_key][key] = value
-
-    def remove(self, key):
-        hashed_key = self.hash(key)
-
-        if hashed_key in self.collection:
-            if key in self.collection[hashed_key]:
-                del self.collection[hashed_key][key]
-
-                if len(self.collection[hashed_key]) == 0:
-                    del self.collection[hashed_key]
-
-    def lookup(self, key):
-        hashed_key = self.hash(key)
-
-        if hashed_key in self.collection:
-            if key in self.collection[hashed_key]:
-                return self.collection[hashed_key][key]
-
-        return None
-
-################################################################################
-
-################################################################################
-  FAILED FILE #27
-################################################################################
-  Path  : examples\Python\ISBN Validator.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def validate_isbn(isbn, length):
-    # Check if ISBN has the correct length
-    if len(isbn) != length:
-        print(f"ISBN-{length} code should be {length} digits long.")
-        return
-
-    main_digits = isbn[:-1]  # all except the last character
-    given_check_digit = isbn[-1]  # last character
-
-    # Check for invalid characters in main digits
-    if not main_digits.isdigit():
-        print("Invalid character was found.")
-        return
-
-    main_digits_list = [int(digit) for digit in main_digits]
-
-    # Calculate the check digit
-    if length == 10:
-        expected_check_digit = calculate_check_digit_10(main_digits_list)
-    else:
-        expected_check_digit = calculate_check_digit_13(main_digits_list)
-
-    # Validate
-    if given_check_digit.upper() == expected_check_digit:
-        print("Valid ISBN Code.")
-    else:
-        print("Invalid ISBN Code.")
-
-
-def calculate_check_digit_10(main_digits_list):
-    digits_sum = sum(
-        digit * (10 - index) for index, digit in enumerate(main_digits_list)
-    )
-    result = 11 - digits_sum % 11
-    if result == 11:
-        return "0"
-    elif result == 10:
-        return "X"
-    else:
-        return str(result)
-
-
-def calculate_check_digit_13(main_digits_list):
-    digits_sum = sum(
-        digit * (1 if index % 2 == 0 else 3)
-        for index, digit in enumerate(main_digits_list)
-    )
-    result = 10 - digits_sum % 10
-    if result == 10:
-        return "0"
-    else:
-        return str(result)
-
-
-def main():
-    user_input = input("Enter ISBN and length: ")
-    try:
-        values = user_input.split(",")
-        if len(values) != 2:
-            print("Enter comma-separated values.")
-            return
-
-        isbn = values[0].strip()
-        try:
-            length = int(values[1].strip())
-        except ValueError:
-            print("Length must be a number.")
-            return
-
-        if length not in [10, 13]:
-            print("Length should be 10 or 13.")
-            return
-
-        validate_isbn(isbn, length)
-
-    except IndexError:
-        print("Enter comma-separated values.")
-
-
-main()  # Commented out for automated tests
-
-################################################################################
-
-################################################################################
-  FAILED FILE #28
-################################################################################
-  Path  : examples\Python\IfElse.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-a = 69;
-kutta = 'horny'
-chucha = 'shareef'
-# C / C++ / JavaScript
-if(a>50){
-    print(kutta)
-}else{
-    print(chucha);
-}
-
-# Python
-if a>50:
-    print(chucha)
-else
-    print(kutta)
-
-x=45;
-# Pure Python style
-if x > 0:
-    print("positive")
-elif x == 0:
-    print("zero")
-else:
-    print("negative")
-
-count=0;
-while count < 10:
-    count += 1
-
-
-# Still works — brace style unchanged
-if x > 0 {
-    print("positive")
-}
-
-# Still works — single line, no braces
-if x > 0 print("positive")
-################################################################################
-
-################################################################################
-  FAILED FILE #29
+  FAILED FILE #6
 ################################################################################
   Path  : examples\Python\Linked List.sa
-  Error : ParseError: Expected 'in' after 'not'
-  Line  : 20:44
-  Code  :             while current_node.next is not None:
-                                                     ^
+  Error : ParseError: Unexpected token: 'DEDENT'
+  Line  : 37:25
+  Code  :         self.length -= 1
+                                  ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1640,59 +592,12 @@ print(my_list.length)  # 1
 ################################################################################
 
 ################################################################################
-  FAILED FILE #30
-################################################################################
-  Path  : examples\Python\Luhn Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def verify_card_number(card_number):
-    # Remove spaces and dashes
-    clean_number = card_number.replace(" ", "").replace("-", "")
-
-    # Convert to list of integers
-    digits = [int(d) for d in clean_number]
-
-    # Start from the second-to-last digit and double every other digit
-    for i in range(len(digits) - 2, -1, -2):
-        doubled = digits[i] * 2
-        if doubled > 9:
-            doubled -= 9
-        digits[i] = doubled
-
-    # Sum all digits
-    total = sum(digits)
-
-    # Check if total is divisible by 10
-    if total % 10 == 0:
-        return "VALID!"
-    else:
-        return "INVALID!"
-
-
-# Test examples
-if __name__ == "__main__":
-    test_cards = [
-        "453914889",
-        "4111-1111-1111-1111",
-        "453914881",
-        "1234 5678 9012 3456",
-    ]
-
-    for card in test_cards:
-        print(f"{card}: {verify_card_number(card)}")
-
-################################################################################
-
-################################################################################
-  FAILED FILE #31
+  FAILED FILE #7
 ################################################################################
   Path  : examples\Python\Media Catalog.sa
-  Error : ParseError: Expected ']' (got 'is')
-  Line  : 65:59
-  Code  :         return [item for item in self.items if type(item) is Movie]
-                                                                    ^
+  Error : RuntimeError: ValueError: Title cannot be empty
+  Line  : 14
+  Code  :             raise ValueError("Title cannot be empty")
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1812,13 +717,13 @@ except MediaError as e:
 ################################################################################
 
 ################################################################################
-  FAILED FILE #32
+  FAILED FILE #8
 ################################################################################
   Path  : examples\Python\Medical Data Validator.sa
-  Error : ParseError: Expected parameter name
-  Line  : 39:26
-  Code  : def find_invalid_records(
-                                   ^
+  Error : ParseError: Expected '}' (got 'and')
+  Line  : 44:9
+  Code  :         and re.fullmatch(r"p\d+", patient_id, re.IGNORECASE),
+                  ^
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -1927,94 +832,10 @@ validate(medical_records)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #33
-################################################################################
-  Path  : examples\Python\Merge Sort Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def merge_sort(array):
-    if len(array) <= 1:
-        return
-
-    middle_point = len(array) // 2
-    left_part = array[:middle_point]
-    right_part = array[middle_point:]
-
-    merge_sort(left_part)
-    merge_sort(right_part)
-
-    left_array_index = 0
-    right_array_index = 0
-    sorted_index = 0
-
-    while left_array_index < len(left_part) and right_array_index < len(right_part):
-        if left_part[left_array_index] < right_part[right_array_index]:
-            array[sorted_index] = left_part[left_array_index]
-            left_array_index += 1
-        else:
-            array[sorted_index] = right_part[right_array_index]
-            right_array_index += 1
-        sorted_index += 1
-
-    while left_array_index < len(left_part):
-        array[sorted_index] = left_part[left_array_index]
-        left_array_index += 1
-        sorted_index += 1
-
-    while right_array_index < len(right_part):
-        array[sorted_index] = right_part[right_array_index]
-        right_array_index += 1
-        sorted_index += 1
-
-
-if __name__ == "__main__":
-    numbers = [4, 10, 6, 14, 2, 1, 8, 5]
-    print("Unsorted array: ")
-    print(numbers)
-    merge_sort(numbers)
-    print("Sorted array: ")
-    print(numbers)
-
-################################################################################
-
-################################################################################
-  FAILED FILE #34
-################################################################################
-  Path  : examples\Python\Musical Instrument Inventory.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-class MusicalInstrument:
-    def __init__(self, name, instrument_type):
-        self.name = name
-        self.instrument_type = instrument_type
-
-    def play(self):
-        print(f"The {self.name} is fun to play!")
-
-    def get_fact(self):
-        return f"The {self.name} is part of the {self.instrument_type} family of instruments."
-
-
-instrument_1 = MusicalInstrument("Oboe", "woodwind")
-instrument_2 = MusicalInstrument("Trumpet", "brass")
-
-instrument_1.play()
-print(instrument_1.get_fact())
-
-instrument_2.play()
-print(instrument_2.get_fact())
-
-################################################################################
-
-################################################################################
-  FAILED FILE #35
+  FAILED FILE #9
 ################################################################################
   Path  : examples\Python\N-Queens Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
+  Error : TypeError: Cannot multiply array and number
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2060,149 +881,10 @@ print(len(dfs_n_queens(8)))  # 92
 ################################################################################
 
 ################################################################################
-  FAILED FILE #36
-################################################################################
-  Path  : examples\Python\Nth Fibonacci Number Calculator.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def fibonacci(n):
-    # Initialize sequence list with the first two Fibonacci numbers
-    sequence = [0, 1]
-
-    # Handle n = 0 or n = 1 immediately
-    if n == 0:
-        return 0
-    elif n == 1:
-        return 1
-
-    # Build the sequence iteratively for n >= 2
-    for i in range(2, n + 1):
-        next_value = sequence[i - 1] + sequence[i - 2]
-        sequence.append(next_value)
-
-    # Return the nth Fibonacci number
-    return sequence[n]
-
-
-# Test cases
-print(fibonacci(0))  # 0
-print(fibonacci(1))  # 1
-print(fibonacci(2))  # 1
-print(fibonacci(3))  # 2
-print(fibonacci(5))  # 5
-print(fibonacci(10))  # 55
-print(fibonacci(15))  # 610
-
-################################################################################
-
-################################################################################
-  FAILED FILE #37
-################################################################################
-  Path  : examples\Python\Output.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-kutta='shararti'
-bandru='bhula'
-kaka='cute'
-print(kutta,bandru,kaka);    #Python
-printf(kutta+bandru+kaka);   #C
-cout << kutta << bandru << kaka; #C++
-################################################################################
-
-################################################################################
-  FAILED FILE #38
-################################################################################
-  Path  : examples\Python\Pin Extractor.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def pin_extractor(poems):
-    secret_codes = []
-    for poem in poems:
-        secret_code = ""
-        lines = poem.split("\n")
-        for line_index, line in enumerate(lines):
-            words = line.split()
-            if len(words) > line_index:
-                secret_code += str(len(words[line_index]))
-            else:
-                secret_code += "0"
-        secret_codes.append(secret_code)
-    return secret_codes  # ✅ Return the list of pins
-
-
-# Example usage:
-poem = """Stars and the moon
-shine in the sky
-white and
-until the end of the night"""
-
-poem2 = "The grass is green\nhere and there\nhoping for rain\nbefore it turns yellow"
-poem3 = "There\nonce\nwas\na\ndragon"
-
-print(pin_extractor([poem, poem2, poem3]))
-
-################################################################################
-
-################################################################################
-  FAILED FILE #39
-################################################################################
-  Path  : examples\Python\Planet Class.sa
-  Error : ParseError: Expected ')' (got '+')
-  Line  : 17:13
-  Code  :             + self.name
-                      ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-class Planet:
-    def __init__(self, name, planet_type, star):
-        if not all(isinstance(arg, str) for arg in [name, planet_type, star]):
-            raise TypeError("name, planet type, and star must be strings")
-        if not all(arg.strip() != "" for arg in [name, planet_type, star]):
-            raise ValueError("name, planet_type, and star must be non-empty strings")
-        self.name = name
-        self.planet_type = planet_type
-        self.star = star
-
-    def orbit(self):
-        return self.name + " is orbiting around " + self.star + "..."
-
-    def __str__(self):
-        return (
-            "Planet: "
-            + self.name
-            + " | Type: "
-            + self.planet_type
-            + " | Star: "
-            + self.star
-        )
-
-
-planet_1 = Planet("Earth", "Terrestrial", "Sun")
-planet_2 = Planet("Jupiter", "Gas Giant", "Sun")
-planet_3 = Planet("Kepler-22b", "Exoplanet", "Kepler-22")
-
-print(planet_1)
-print(planet_2)
-print(planet_3)
-
-print(planet_1.orbit())
-print(planet_2.orbit())
-print(planet_3.orbit())
-
-################################################################################
-
-################################################################################
-  FAILED FILE #40
+  FAILED FILE #10
 ################################################################################
   Path  : examples\Python\Polygon Area Calculator.sa
-  Error : NameError: Undefined variable: 'print'
+  Error : TypeError: Cannot multiply nil and nil
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2287,104 +969,7 @@ if __name__ == "__main__":
 ################################################################################
 
 ################################################################################
-  FAILED FILE #41
-################################################################################
-  Path  : examples\Python\Quicksort Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def quick_sort(arr):
-    # Base case: empty list or single element list is already sorted
-    if len(arr) <= 1:
-        return arr.copy()  # return a copy to avoid modifying the original list
-
-    # Choose pivot (here we take the first element)
-    pivot = arr[0]
-
-    # Partition into three sublists
-    less = [x for x in arr if x < pivot]
-    equal = [x for x in arr if x == pivot]
-    greater = [x for x in arr if x > pivot]
-
-    # Recursively sort less and greater, then concatenate
-    return quick_sort(less) + equal + quick_sort(greater)
-
-
-# Test examples
-if __name__ == "__main__":
-    test_cases = [
-        [],
-        [20, 3, 14, 1, 5],
-        [83, 4, 24, 2],
-        [4, 42, 16, 23, 15, 8],
-        [87, 11, 23, 18, 18, 23, 11, 56, 87, 56],
-    ]
-
-    for case in test_cases:
-        print(f"Original: {case}")
-        print(f"Sorted:   {quick_sort(case)}\n")
-
-################################################################################
-
-################################################################################
-  FAILED FILE #42
-################################################################################
-  Path  : examples\Python\RPG Character.sa
-  Error : ParseError: Expected ')' (got 'is')
-  Line  : 19:20
-  Code  :     if any(type(s) is not int for s in stats):
-                             ^
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-full_dot = "●"
-empty_dot = "○"
-
-
-def create_character(name, strength, intelligence, charisma):
-    # Name validations (order matters)
-    if not isinstance(name, str):
-        return "The character name should be a string."
-    if name == "":
-        return "The character should have a name."
-    if len(name) > 10:
-        return "The character name is too long."
-    if " " in name:
-        return "The character name should not contain spaces."
-
-    # Stats validations
-    stats = (strength, intelligence, charisma)
-    # Must be int (not bool)
-    if any(type(s) is not int for s in stats):
-        return "All stats should be integers."
-    if any(s < 1 for s in stats):
-        return "All stats should be no less than 1."
-    if any(s > 4 for s in stats):
-        return "All stats should be no more than 4."
-    if sum(stats) != 7:
-        return "The character should start with 7 points."
-
-    # Build stats lines
-    def build_line(label, value):
-        return f"{label} " + full_dot * value + empty_dot * (10 - value)
-
-    return "\n".join(
-        [
-            name,
-            build_line("STR", strength),
-            build_line("INT", intelligence),
-            build_line("CHA", charisma),
-        ]
-    )
-
-
-print(create_character("ren", 4, 2, 1))
-
-################################################################################
-
-################################################################################
-  FAILED FILE #43
+  FAILED FILE #11
 ################################################################################
   Path  : examples\Python\Salary Tracker.sa
   Error : ParseError: Unexpected token: '}'
@@ -2470,50 +1055,10 @@ print(f"New salary: ${charlie_brown.salary}")
 ################################################################################
 
 ################################################################################
-  FAILED FILE #44
-################################################################################
-  Path  : examples\Python\Selection Sort Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def selection_sort(arr):
-    n = len(arr)
-    for i in range(n):
-        # Assume the first unsorted element is the minimum
-        min_index = i
-        # Check the rest of the unsorted elements
-        for j in range(i + 1, n):
-            if arr[j] < arr[min_index]:
-                min_index = j
-        # Swap only if a smaller element was found
-        if min_index != i:
-            arr[i], arr[min_index] = arr[min_index], arr[i]
-    return arr
-
-
-# Test examples
-if __name__ == "__main__":
-    test_cases = [
-        [33, 1, 89, 2, 67, 245],
-        [5, 16, 99, 12, 567, 23, 15, 72, 3],
-        [1, 4, 2, 8, 345, 123, 43, 32, 5643, 63, 123, 43, 2, 55, 1, 234, 92],
-    ]
-
-    for case in test_cases:
-        print(f"Original: {case}")
-        print(f"Sorted:   {selection_sort(case)}\n")
-
-################################################################################
-
-################################################################################
-  FAILED FILE #45
+  FAILED FILE #12
 ################################################################################
   Path  : examples\Python\Shortest Path Algorithm.sa
-  Error : ParseError: Expected 'else' in Python ternary expression (got 'is')
-  Line  : 41:44
-  Code  :     targets = [target_node] if target_node is not None else range(n)
-                                                     ^
+  Error : TypeError: Cannot multiply array and number
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -2574,245 +1119,7 @@ shortest_path(adj_matrix, 0, 5)
 ################################################################################
 
 ################################################################################
-  FAILED FILE #46
-################################################################################
-  Path  : examples\Python\Tower of Hanoi Algorithm.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-def hanoi_solver(n):
-    # Initialize rods
-    source = list(range(n, 0, -1))  # [n, n-1, ..., 1]
-    auxiliary = []
-    target = []
-
-    # To store the moves as strings
-    moves = []
-
-    # Helper function to record the current state
-    def record_state():
-        moves.append(f"{source} {auxiliary} {target}")
-
-    # Recursive Hanoi function
-    def move_disks(num, src, aux, tgt):
-        if num == 0:
-            return
-        # Move n-1 disks from src to aux using tgt as auxiliary
-        move_disks(num - 1, src, tgt, aux)
-        # Move the last disk from src to tgt
-        disk = src.pop()
-        tgt.append(disk)
-        record_state()
-        # Move the n-1 disks from aux to tgt using src as auxiliary
-        move_disks(num - 1, aux, src, tgt)
-
-    # Record initial state
-    record_state()
-    # Solve the puzzle
-    move_disks(n, source, auxiliary, target)
-
-    # Return all moves as a single string separated by newlines
-    return "\n".join(moves)
-
-
-# Example:
-print(hanoi_solver(3))
-
-################################################################################
-
-################################################################################
-  FAILED FILE #47
-################################################################################
-  Path  : examples\Python\oop_classes.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-# ════════════════════════════════════════════════════════════════════
-#  Quantum Language — Object-Oriented Programming Demo
-# ════════════════════════════════════════════════════════════════════
-
-print("═══ 1. Basic Class with Constructor ═══")
-
-class Animal:
-    fn init(name, sound):
-        self.name = name
-        self.sound = sound
-
-    fn speak():
-        return self.name + " says " + self.sound
-
-    fn __str__():
-        return "Animal(" + self.name + ")"
-
-cat = Animal("Whiskers", "Meow")
-print(cat.speak())
-print("toString:", cat)
-
-print("")
-print("═══ 2. Inheritance & super() ═══")
-
-class Dog extends Animal:
-    fn init(name, breed):
-        super(name, "Woof")
-        self.breed = breed
-
-    fn fetch(item):
-        return self.name + " the " + self.breed + " fetches the " + item
-
-    fn __str__():
-        return "Dog(" + self.name + ", " + self.breed + ")"
-
-dog = Dog("Rex", "German Shepherd")
-print(dog.speak())
-print(dog.fetch("ball"))
-print("toString:", dog)
-
-print("")
-print("═══ 3. Method Overriding & super.method() ═══")
-
-class Cat extends Animal:
-    fn init(name, indoor):
-        super(name, "Meow")
-        self.indoor = indoor
-
-    fn speak():
-        let base_speak = super.speak()
-        if self.indoor:
-            return base_speak + " (from inside)"
-        return base_speak
-
-kitty = Cat("Luna", true)
-print(kitty.speak())
-
-print("")
-print("═══ 4. isinstance() ═══")
-
-print("dog isinstance Animal:", isinstance(dog, Animal))
-print("dog isinstance Dog:", isinstance(dog, Dog))
-print("cat isinstance Dog:", isinstance(cat, Dog))
-print("kitty isinstance Animal:", isinstance(kitty, Animal))
-
-print("")
-print("═══ 5. Static Methods ═══")
-
-class MathUtils:
-    static fn add(a, b):
-        return a + b
-
-    static fn multiply(a, b):
-        return a * b
-
-    static fn square(x):
-        return x * x
-
-print("MathUtils.add(3, 4):", MathUtils.add(3, 4))
-print("MathUtils.multiply(5, 6):", MathUtils.multiply(5, 6))
-print("MathUtils.square(8):", MathUtils.square(8))
-
-print("")
-print("═══ 6. Multi-level Inheritance ═══")
-
-class Vehicle:
-    fn init(make, year):
-        self.make = make
-        self.year = year
-
-    fn info():
-        return self.make + " (" + str(self.year) + ")"
-
-class Car extends Vehicle:
-    fn init(make, year, doors):
-        super(make, year)
-        self.doors = doors
-
-    fn info():
-        return super.info() + " - " + str(self.doors) + " doors"
-
-class ElectricCar extends Car:
-    fn init(make, year, doors, range_km):
-        super(make, year, doors)
-        self.range_km = range_km
-
-    fn info():
-        return super.info() + " [EV, " + str(self.range_km) + "km range]"
-
-tesla = ElectricCar("Tesla Model 3", 2024, 4, 580)
-print(tesla.info())
-print("isinstance Vehicle:", isinstance(tesla, Vehicle))
-print("isinstance Car:", isinstance(tesla, Car))
-print("isinstance ElectricCar:", isinstance(tesla, ElectricCar))
-
-print("")
-print("═══ 7. JavaScript-style Class (brace syntax) ═══")
-
-class Counter {
-    constructor(start) {
-        this.count = start;
-    }
-
-    increment() {
-        this.count = this.count + 1;
-    }
-
-    decrement() {
-        this.count = this.count - 1;
-    }
-
-    toString() {
-        return "Counter(" + str(this.count) + ")";
-    }
-}
-
-let c = new Counter(10)
-c.increment()
-c.increment()
-c.increment()
-c.decrement()
-print("Counter value:", c.count)
-print("Counter string:", c)
-
-print("")
-print("═══ 8. classname() builtin ═══")
-print("classname(dog):", classname(dog))
-print("classname(tesla):", classname(tesla))
-print("classname(c):", classname(c))
-
-print("")
-print("═══ 9. Instance Field Assignment ═══")
-class Point:
-    fn init(x, y):
-        self.x = x
-        self.y = y
-
-    fn __str__():
-        return "(" + str(self.x) + ", " + str(self.y) + ")"
-
-    fn distance_to(other):
-        let dx = self.x - other.x
-        let dy = self.y - other.y
-        return (dx * dx + dy * dy) ** 0.5
-
-let p1 = Point(3, 4)
-let p2 = Point(0, 0)
-print("p1:", p1)
-print("p2:", p2)
-print("Distance:", p1.distance_to(p2))
-
-# Modify fields
-p1.x = 6
-p1.y = 8
-print("p1 after modification:", p1)
-print("Distance after mod:", p1.distance_to(p2))
-
-print("")
-print("═══ All OOP tests passed! ═══")
-
-################################################################################
-
-################################################################################
-  FAILED FILE #48
+  FAILED FILE #13
 ################################################################################
   Path  : examples\Python\test2.sa
   Error : NameError: Undefined variable: 'self'
@@ -2824,46 +1131,10 @@ title = f"{self.name:*^30}\n"
 ################################################################################
 
 ################################################################################
-  FAILED FILE #49
-################################################################################
-  Path  : examples\Python\test_budget.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-class Category:
-    def __init__(self, name):
-        self.name = name
-
-cat = Category("Food")
-print(cat.name)
-
-################################################################################
-
-################################################################################
-  FAILED FILE #50
-################################################################################
-  Path  : examples\Python\tutorial.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-i=1;
-
-while i<10:{
-cout << "Testing C++"
-    printf(i);
-    i++;
-}
-
-print("END");
-################################################################################
-
-################################################################################
-  FAILED FILE #51
+  FAILED FILE #14
 ################################################################################
   Path  : examples\advanced.sa
-  Error : NameError: Undefined variable: 'print'
+  Error : NameError: Undefined variable: 'doubleAfterInc'
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -3031,10 +1302,10 @@ for _ in range(6) {
 ################################################################################
 
 ################################################################################
-  FAILED FILE #52
+  FAILED FILE #15
 ################################################################################
   Path  : examples\cybersec.sa
-  Error : NameError: Undefined variable: 'print'
+  Error : TypeError: Cannot add nil and number
 --------------------------------------------------------------------------------
   Source Code:
 --------------------------------------------------------------------------------
@@ -3236,267 +1507,5 @@ for pw in passwords {
 
 print("\n[Done] Quantum CyberSec Demo Complete")
 
-################################################################################
-
-################################################################################
-  FAILED FILE #53
-################################################################################
-  Path  : examples\demo.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-function test() { #Javascript
-    x = 10          # Python style
-
-    if (x > 5) {    // C / C++ / JS style
-        print("Hello")
-    }
-
-    for i in range(5):   # Python style loop
-        console.log(i);  // JavaScript style output
-}
-test()
-################################################################################
-
-################################################################################
-  FAILED FILE #54
-################################################################################
-  Path  : examples\features.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-# features.sa — Quantum Language Feature Showcase
-# Run: quantum features.sa
-
-# ── Variables (no type declarations, like Python) ──────────────────────────
-let x = 42
-let pi = 3.14159
-let name = "Quantum"
-let active = true
-let nothing = nil
-
-print("=== Variables ===")
-print("x:", x, "| pi:", pi, "| name:", name, "| active:", active)
-
-# ── Constants ──────────────────────────────────────────────────────────────
-const MAX_RETRIES = 3
-const APP_NAME = "QuantumSec"
-print("=== Constants ===")
-print("App:", APP_NAME, "| Max retries:", MAX_RETRIES)
-
-# ── Functions (JS-style declaration) ──────────────────────────────────────
-print("\n=== Functions ===")
-
-fn greet(person) {
-    return "Hello, " + person + "!"
-}
-
-fn add(a, b) {
-    return a + b
-}
-
-fn factorial(n) {
-    if n <= 1 { return 1 }
-    return n * factorial(n - 1)
-}
-
-print(greet("World"))
-print("5 + 3 =", add(5, 3))
-print("10! =", factorial(10))
-
-# ── Lambda (anonymous functions) ──────────────────────────────────────────
-let square = fn(n) { return n * n }
-let cube   = fn(n) { return n * n * n }
-
-print("7² =", square(7), "| 3³ =", cube(3))
-
-# ── Closures ─────────────────────────────────────────────────────────────
-fn make_counter(start) {
-    let count = start
-    return fn() {
-        count += 1
-        return count
-    }
-}
-
-let counter = make_counter(0)
-print("\n=== Closures ===")
-print("Counter:", counter(), counter(), counter())
-
-# ── Arrays ────────────────────────────────────────────────────────────────
-print("\n=== Arrays ===")
-let nums = [10, 20, 30, 40, 50]
-nums.push(60)
-print("Array:", nums)
-print("Length:", len(nums))
-print("Popped:", nums.pop())
-print("Sliced:", nums.slice(1, 4))
-
-let doubled = nums.map(fn(n) { return n * 2 })
-print("Doubled:", doubled)
-
-let evens = nums.filter(fn(n) { return n % 20 == 0 })
-print("Divisible by 20:", evens)
-
-# ── Dictionaries ──────────────────────────────────────────────────────────
-print("\n=== Dictionaries ===")
-let user = {
-    "name": "Alice",
-    "role": "pentester",
-    "level": 99
-}
-
-print("User:", user)
-print("Name:", user["name"])
-user["tools"] = ["nmap", "burp", "metasploit"]
-print("Tools:", user.get("tools"))
-print("Keys:", user.keys())
-
-# ── Control Flow ──────────────────────────────────────────────────────────
-print("\n=== Control Flow ===")
-
-fn classify(n) {
-    if n < 0 {
-        return "negative"
-    } elif n == 0 {
-        return "zero"
-    } elif n < 10 {
-        return "small"
-    } elif n < 100 {
-        return "medium"
-    } else {
-        return "large"
-    }
-}
-
-for n in [-5, 0, 7, 42, 500] {
-    print(n, "->", classify(n))
-}
-
-# ── Loops ─────────────────────────────────────────────────────────────────
-print("\n=== Loops ===")
-let total = 0
-let i = 1
-while i <= 10 {
-    total += i
-    i += 1
-}
-print("Sum 1..10 =", total)
-
-let words = ["quantum", "is", "awesome"]
-for word in words {
-    print(word.upper())
-}
-
-# ── String Methods ────────────────────────────────────────────────────────
-print("\n=== Strings ===")
-let msg = "  Hello Quantum World  "
-print("Trimmed:", msg.trim())
-print("Upper:", msg.trim().upper())
-print("Split:", msg.trim().split(" "))
-print("Replace:", msg.trim().replace("World", "Universe"))
-print("Contains 'Quantum':", msg.contains("Quantum"))
-
-# ── Math ──────────────────────────────────────────────────────────────────
-print("\n=== Math ===")
-print("PI:", PI)
-print("sqrt(144):", sqrt(144))
-print("2^10:", 2 ** 10)
-print("abs(-42):", abs(-42))
-print("Floor(3.9):", floor(3.9))
-
-# ── Bitwise Operations (key for cybersecurity) ────────────────────────────
-print("\n=== Bitwise (Crypto-ready) ===")
-let a = 0xFF
-let b = 0x0F
-print("0xFF & 0x0F =", hex(a & b))
-print("0xFF | 0x0F =", hex(a | b))
-print("0xFF ^ 0x0F =", hex(a ^ b))
-print("~0xFF =", ~a)
-print("1 << 8 =", 1 << 8)
-print("256 >> 4 =", 256 >> 4)
-
-# ── Type System ───────────────────────────────────────────────────────────
-print("\n=== Types ===")
-print(type(42))
-print(type("hello"))
-print(type([1,2,3]))
-print(type(true))
-print(type(nil))
-print(num("3.14"))
-print(str(42))
-
-# ── Range & iteration ─────────────────────────────────────────────────────
-print("\n=== Range ===")
-let squares = range(1, 6).map(fn(n) { return n * n })
-
-# Wait, range returns array, then we call map
-let r = range(5)
-let sq = r.map(fn(n) { return n * n })
-print("Squares of 0-4:", sq)
-
-################################################################################
-
-################################################################################
-  FAILED FILE #55
-################################################################################
-  Path  : examples\hello.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-# hello.sa — Your first Quantum program
-# Run: quantum hello.sa
-
-print("Hello, Quantum World! 🚀")
-
-let name = "Chuchu"
-let version = 1.0
-
-print("Welcome,", name, "| Quantum v" + str(version))
-
-################################################################################
-
-################################################################################
-  FAILED FILE #56
-################################################################################
-  Path  : examples\if-else.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-let chuchu = 234;
-let kutta = 234;
-if(chuchu>100){
-    print(chuchu);
-}
-else{
-    print(kutta);
-}
-fn ChuzaArmy(kutta,chuchu){
-    let chuchu="CHUCHU ARMO is the best Armo"
-    print(chuchu);
-    return 0;
-}
-
-print(ChuzaArmy(chuchu,kutta));
-################################################################################
-
-################################################################################
-  FAILED FILE #57
-################################################################################
-  Path  : examples\simple.sa
-  Error : NameError: Undefined variable: 'print'
---------------------------------------------------------------------------------
-  Source Code:
---------------------------------------------------------------------------------
-let a=96;
-if(a<=69){
-    print("KUTTA IS VERY HORNY");
-}else{
-    print("CHUCHU is GREAT");
-}
 ################################################################################
 

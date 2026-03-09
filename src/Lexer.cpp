@@ -52,6 +52,7 @@ const std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"and", TokenType::AND},
     {"or", TokenType::OR},
     {"not", TokenType::NOT},
+    {"is", TokenType::IS},
     // C/C++ style type keywords
     {"int", TokenType::TYPE_INT},
     {"float", TokenType::TYPE_FLOAT},
@@ -641,6 +642,55 @@ std::vector<Token> Lexer::tokenize()
                 rawTokens.emplace_back(TokenType::STAR, "*", startLine, startCol);
             break;
         case '/':
+            // Regex literal detection: /pattern/flags
+            // Only when prev token is NOT a value (number/string/ident/)/])
+            if (current() != '/' && current() != '*' && current() != '=')
+            {
+                bool prevIsVal = false;
+                if (!rawTokens.empty())
+                {
+                    TokenType ptt = rawTokens.back().type;
+                    prevIsVal = (ptt == TokenType::NUMBER || ptt == TokenType::STRING ||
+                                 ptt == TokenType::IDENTIFIER || ptt == TokenType::RPAREN ||
+                                 ptt == TokenType::RBRACKET || ptt == TokenType::BOOL_TRUE ||
+                                 ptt == TokenType::BOOL_FALSE);
+                }
+                if (!prevIsVal)
+                {
+                    // Lex regex: scan to unescaped '/' respecting character classes [...]
+                    std::string regStr = "/";
+                    bool inCls = false;
+                    while (pos < src.size() && current() != '\n')
+                    {
+                        char rc = src[pos];
+                        if (rc == '\\' && pos + 1 < src.size())
+                        {
+                            regStr += rc;
+                            regStr += src[pos + 1];
+                            pos += 2;
+                            col += 2;
+                            continue;
+                        }
+                        if (rc == '[')
+                            inCls = true;
+                        if (rc == ']')
+                            inCls = false;
+                        if (rc == '/' && !inCls)
+                        {
+                            advance();
+                            regStr += '/';
+                            break;
+                        }
+                        regStr += rc;
+                        advance();
+                    }
+                    // eat flags: g i m s u y
+                    while (pos < src.size() && std::isalpha(current()))
+                        regStr += advance();
+                    rawTokens.emplace_back(TokenType::STRING, regStr, startLine, startCol);
+                    continue;
+                }
+            }
             if (current() == '/')
             {
                 // Distinguish Python floor-division // from C/JS // line comment.
@@ -824,7 +874,16 @@ std::vector<Token> Lexer::tokenize()
             rawTokens.emplace_back(TokenType::COLON, ":", startLine, startCol);
             break;
         case '.':
-            rawTokens.emplace_back(TokenType::DOT, ".", startLine, startCol);
+            if (current() == '.' && pos + 1 < src.size() && src[pos + 1] == '.')
+            {
+                advance();
+                advance(); // eat the remaining two dots
+                rawTokens.emplace_back(TokenType::IDENTIFIER, "...", startLine, startCol);
+            }
+            else
+            {
+                rawTokens.emplace_back(TokenType::DOT, ".", startLine, startCol);
+            }
             break;
         case '?':
             rawTokens.emplace_back(TokenType::QUESTION, "?", startLine, startCol);
@@ -876,6 +935,7 @@ std::vector<Token> Lexer::tokenize()
 
     std::vector<int> indentStack = {0};
     int bracketDepth = 0; // track ( { [ depth — never emit INDENT/DEDENT inside these
+    int parenBracketDepth = 0; // track ( [ depth only — entirely drop NEWLINE inside these
 
     for (size_t i = 0; i < rawTokens.size(); ++i)
     {
@@ -885,11 +945,22 @@ std::vector<Token> Lexer::tokenize()
         if (tok.type == TokenType::LBRACE ||
             tok.type == TokenType::LBRACKET ||
             tok.type == TokenType::LPAREN)
+        {
             bracketDepth++;
+            if (tok.type != TokenType::LBRACE)
+                parenBracketDepth++;
+        }
         else if (tok.type == TokenType::RBRACE ||
                  tok.type == TokenType::RBRACKET ||
                  tok.type == TokenType::RPAREN)
+        {
             bracketDepth = std::max(0, bracketDepth - 1);
+            if (tok.type != TokenType::RBRACE)
+                parenBracketDepth = std::max(0, parenBracketDepth - 1);
+        }
+
+        if (tok.type == TokenType::NEWLINE && parenBracketDepth > 0)
+            continue; // Drop NEWLINE entirely inside ( ) and [ ]
 
         // COLON followed by NEWLINE + deeper indent → open Python block
         // But NOT inside brackets/braces/parens (dict literal, array, call args)

@@ -82,6 +82,7 @@ enum class TokenType
     AND,
     OR,
     NOT,
+    IS,
     ASSIGN,
     PLUS_ASSIGN,
     MINUS_ASSIGN,

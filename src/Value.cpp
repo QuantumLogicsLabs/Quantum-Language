@@ -212,3 +212,15 @@ void QuantumInstance::setField(const std::string &name, QuantumValue val)
 {
     fields[name] = std::move(val);
 }
+
+bool QuantumValue::isNative() const
+{
+    return std::holds_alternative<std::shared_ptr<QuantumNative>>(data);
+}
+
+std::shared_ptr<QuantumNative> QuantumValue::asNative() const
+{
+    if (!isNative())
+        throw RuntimeError("Value is not a native function");
+    return std::get<std::shared_ptr<QuantumNative>>(data);
+}

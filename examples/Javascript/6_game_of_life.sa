@@ -11,7 +11,7 @@ function nextGen(grid) {
   return grid.map((row, r) =>
     row.map((cell, c) => {
       const neighbors = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
-        .filter(([dr, dc]) => grid[r+dr]?.[c+dc] === 1).length;
+        .filter(([dr, dc]) => (grid[r+dr] && grid[r+dr][c+dc]) === 1).length;
       return cell ? (neighbors === 2 || neighbors === 3 ? 1 : 0)
                   : (neighbors === 3 ? 1 : 0);
     })

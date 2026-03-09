@@ -112,10 +112,12 @@ struct QuantumValue
     std::shared_ptr<Array> asArray() const { return std::get<std::shared_ptr<Array>>(data); }
     std::shared_ptr<Dict> asDict() const { return std::get<std::shared_ptr<Dict>>(data); }
     std::shared_ptr<QuantumFunction> asFunction() const { return std::get<std::shared_ptr<QuantumFunction>>(data); }
-    std::shared_ptr<QuantumNative> asNative() const { return std::get<std::shared_ptr<QuantumNative>>(data); }
     std::shared_ptr<QuantumInstance> asInstance() const { return std::get<std::shared_ptr<QuantumInstance>>(data); }
     std::shared_ptr<QuantumClass> asClass() const { return std::get<std::shared_ptr<QuantumClass>>(data); }
     std::shared_ptr<QuantumPointer> asPointer() const { return std::get<std::shared_ptr<QuantumPointer>>(data); }
+
+    bool isNative() const;
+    std::shared_ptr<QuantumNative> asNative() const;
 
     bool isTruthy() const;
     std::string toString() const;
