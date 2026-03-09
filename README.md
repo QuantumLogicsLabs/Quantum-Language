@@ -383,8 +383,8 @@ Is this a feature? Is this a cry for help? Is this what happens when you learn t
 Stars:       0   ██░░░░░░░░░░░░░░░░░░  (progress)
 Forks:       0   ██░░░░░░░░░░░░░░░░░░  (potential)
 Watchers:    0   ██░░░░░░░░░░░░░░░░░░  (stealth mode)
-Issues:      0   ████████████████████  (perfection, allegedly)
-PRs:         0   ████████████████████  (Saad works alone)
+Issues:      0   ██░░░░░░░░░░░░░░░░░░  (perfection, allegedly)
+PRs:         0   ██░░░░░░░░░░░░░░░░░░  (Saad works alone)
 Contributors: 1  ████████████████████  (a legend)
 ```
 
