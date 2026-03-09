@@ -1213,6 +1213,104 @@ void Interpreter::registerNatives()
         globals->define("nullptr", QuantumValue(nullPtr));
         globals->define("NULL", QuantumValue(nullPtr));
     }
+
+    // ── Smart pointer factory functions ───────────────────────────────────
+    // make_unique<T>(args...) / make_unique<T[]>(size)
+    // We treat unique_ptr, shared_ptr as live QuantumPointer values.
+    // The type parameter is stripped by the parser/lexer (angle brackets), so
+    // we simply allocate a new heap cell and return a pointer to it.
+    {
+        // make_unique(value)  — allocates a new cell holding value
+        auto nat = std::make_shared<QuantumNative>();
+        nat->name = "make_unique";
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            auto cell = std::make_shared<QuantumValue>(args.empty() ? QuantumValue() : args[0]);
+            // If a size (number) is passed with no other context, treat as array allocation
+            if (args.size() == 1 && args[0].isNumber())
+            {
+                int sz = (int)args[0].asNumber();
+                auto arr = std::make_shared<Array>(sz, QuantumValue(0.0));
+                cell = std::make_shared<QuantumValue>(QuantumValue(arr));
+            }
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "unique_ptr";
+            ptr->offset = 0;
+            return QuantumValue(ptr);
+        };
+        globals->define("make_unique", QuantumValue(nat));
+    }
+    {
+        // make_shared(value)  — allocates a shared cell
+        auto nat = std::make_shared<QuantumNative>();
+        nat->name = "make_shared";
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            auto cell = std::make_shared<QuantumValue>(args.empty() ? QuantumValue() : args[0]);
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "shared_ptr";
+            ptr->offset = 0;
+            return QuantumValue(ptr);
+        };
+        globals->define("make_shared", QuantumValue(nat));
+    }
+    {
+        // shared_ptr(value) — same as make_shared, for direct construction syntax
+        auto nat = std::make_shared<QuantumNative>();
+        nat->name = "shared_ptr";
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            auto cell = std::make_shared<QuantumValue>(args.empty() ? QuantumValue() : args[0]);
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "shared_ptr";
+            ptr->offset = 0;
+            return QuantumValue(ptr);
+        };
+        globals->define("shared_ptr", QuantumValue(nat));
+    }
+    {
+        // unique_ptr(value) — direct construction
+        auto nat = std::make_shared<QuantumNative>();
+        nat->name = "unique_ptr";
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            auto cell = std::make_shared<QuantumValue>(args.empty() ? QuantumValue() : args[0]);
+            auto ptr = std::make_shared<QuantumPointer>();
+            ptr->cell = cell;
+            ptr->varName = "unique_ptr";
+            ptr->offset = 0;
+            return QuantumValue(ptr);
+        };
+        globals->define("unique_ptr", QuantumValue(nat));
+    }
+    {
+        // weak_ptr() — starts as null; assigned from a shared_ptr
+        // weak_ptr.lock() is handled in callMethod — returns the pointer or nil
+        auto nat = std::make_shared<QuantumNative>();
+        nat->name = "weak_ptr";
+        nat->fn = [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+            if (!args.empty() && args[0].isPointer())
+            {
+                // Wrap the same cell — weak reference (no ownership counted separately)
+                auto src = args[0].asPointer();
+                auto wptr = std::make_shared<QuantumPointer>();
+                wptr->cell = src->cell; // shares the cell — lock() will work
+                wptr->varName = "weak_ptr";
+                wptr->offset = src->offset;
+                return QuantumValue(wptr);
+            }
+            // Default: null weak_ptr
+            auto nullPtr = std::make_shared<QuantumPointer>();
+            nullPtr->cell = nullptr;
+            nullPtr->varName = "weak_ptr";
+            return QuantumValue(nullPtr);
+        };
+        globals->define("weak_ptr", QuantumValue(nat));
+    }
 }
 
 // ─── Execute ─────────────────────────────────────────────────────────────────
@@ -1408,6 +1506,23 @@ void Interpreter::execVarDecl(VarDecl &s)
             ptr->varName = s.name;
             val = QuantumValue(ptr);
         }
+    }
+
+    // ── Smart pointer copy: shared_ptr<T> b = a; should create a new QuantumPointer
+    // sharing the same cell, so cell.use_count() increments properly.
+    // Without this, both variables would share the same shared_ptr<QuantumPointer>
+    // and use_count would not reflect the number of named smart-pointer variables.
+    if (val.isPointer() && !s.isPointer)
+    {
+        // Only do this for non-raw-pointer VarDecls (i.e. smart pointer copies like
+        // shared_ptr<int> b = a; or weak_ptr<int> w = a;)
+        // Raw pointer declarations (int* p = q) already handled above.
+        auto src = val.asPointer();
+        auto newPtr = std::make_shared<QuantumPointer>();
+        newPtr->cell = src->cell; // share the same cell
+        newPtr->varName = s.name;
+        newPtr->offset = src->offset;
+        val = QuantumValue(newPtr);
     }
 
     env->define(s.name, std::move(val), s.isConst);
@@ -3569,7 +3684,9 @@ QuantumValue Interpreter::callMethod(QuantumValue &obj, const std::string &metho
             // weak_ptr::lock() — returns the pointer if valid, nil if expired
             return ptr->isNull() ? QuantumValue() : obj;
         if (method == "use_count")
-            return QuantumValue(1.0); // we don't track ref counts; 1 is a safe stub
+            // Use the actual shared_ptr use_count of the cell — reflects how many
+            // QuantumPointer objects share the same underlying cell (simulates shared_ptr semantics)
+            return QuantumValue(ptr->cell ? (double)ptr->cell.use_count() : 0.0);
         if (method == "expired")
             return QuantumValue(ptr->isNull()); // null pointer → expired
         if (method == "get")
