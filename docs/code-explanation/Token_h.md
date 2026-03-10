@@ -1,32 +1,21 @@
-# Token.h - Token Type Definitions and Token Structure
+# Token.cpp - Token String Representation Implementation
 
-## Overview
-`Token.h` defines the complete token system for the Quantum Language lexer. It contains the `TokenType` enumeration that categorizes all possible tokens, and the `Token` structure that represents individual tokens with their lexical information.
+## Complete Source Code
 
-## Architecture Overview
-
-The token system provides:
-- **Comprehensive Token Coverage**: All language constructs represented
-- **Multi-language Support**: Aliases for Python, JavaScript, and C-style syntax
-- **Position Information**: Line and column tracking for error reporting
-- **Future-proofing**: Reserved keywords for planned features
-
-## Line-by-Line Analysis
-
-### Header Guard (Line 1)
 ```cpp
-#pragma once
-```
-- **Modern Include Guard**: Prevents multiple inclusion errors
-- **Compiler Optimization**: More efficient than traditional include guards
-- **Standard Practice**: Widely supported in modern C++ compilers
+#include "../include/Token.h"
+#include <sstream>
 
-### Dependencies (Line 2)
-```cpp
-#include <string>
+std::string Token::toString() const {
+    std::ostringstream oss;
+    oss << "[" << line << ":" << col << " " << value << "]";
+    return oss.str();
+}
 ```
-- **String Support**: Needed for token value storage
-- **Minimal Dependencies**: Only includes what's necessary
+
+## Purpose
+
+The `Token.cpp` file implements the `toString()` method for the `Token` structure, providing a human-readable string representation of tokens that includes their position information and value. This implementation is essential for debugging, error reporting, and development tools that need to display token information in a clear, formatted manner.
 
 ### TokenType Enumeration (Lines 4-141)
 
