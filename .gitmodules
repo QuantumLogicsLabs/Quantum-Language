@@ -2,3 +2,7 @@
 	path = Website
 	url = https://github.com/SENODROOM/QuantumLanguage-Website.git
 	branch = main
+[submodule "Library"]
+	path = examples/library
+	url = https://github.com/SENODROOM/Quantum-Library.git
+	branch = main
