@@ -16,7 +16,7 @@
 	branch = main
 [submodule "extensions"]
 	path = extensions
-	url = https://github.com/SENODROOM/QuantumLanguageExtension.git
+	url = https://github.com/SENODROOM/QLang-DesginDocs.git
 	branch = main
 
 

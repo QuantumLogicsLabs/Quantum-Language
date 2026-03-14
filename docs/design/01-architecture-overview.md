@@ -121,6 +121,36 @@ globalEnv->define("sha256", "string");  // Cryptographic function
 - **Early Error Detection**: Catch type errors before execution
 - **IDE Support**: Type information for language services
 
+### TypeChecker Folder Structure
+```
+src/
+├── TypeChecker.cpp              # Type checker implementation
+│   ├── TypeChecker()            # Constructor with built-in registration
+│   ├── check(nodes)             # Check multiple AST nodes
+│   ├── check(node)              # Check single AST node
+│   └── checkNode(node, env)     # Core type checking logic
+│       ├── Literal handling     # Number, String, Bool literals
+│       ├── Variable checking    # Identifier resolution
+│       ├── Declaration checking # Variable declarations with hints
+│       ├── Function validation  # Parameter and return types
+│       ├── Block scoping        # Environment chain management
+│       ├── Expression inference # Binary/Unary expression types
+│       └── Call validation      # Function call type checking
+│
+include/
+├── TypeChecker.h                # Type checker interface
+│   ├── StaticTypeError          # Type error exception class
+│   ├── TypeEnv                  # Type environment structure
+│   │   ├── vars                 # Variable → Type mapping
+│   │   ├── parent               # Parent environment link
+│   │   ├── define()             # Add variable to environment
+│   │   └── resolve()            # Look up variable in chain
+│   └── TypeChecker              # Main type checker class
+│       ├── globalEnv            # Global type environment
+│       ├── check()              # Public interface methods
+│       └── checkNode()          # Core checking algorithm
+```
+
 ### 2. Backend (Runtime)
 
 #### **Interpreter** (`src/Interpreter.cpp`, `include/Interpreter.h`)
