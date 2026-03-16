@@ -1,34 +1,33 @@
-cmake_minimum_required(VERSION 3.14)
-project(quantum VERSION 1.0.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(Quantum CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Optimized release build
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+if(MSVC)
+    add_compile_options(/O2 /W3)
+else()
+    add_compile_options(-O2 -Wall -Wextra -Wno-unused-parameter)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
-set(CMAKE_CXX_FLAGS_DEBUG "/W4")
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# Sources
-set(SOURCES
-    src/main.cpp
-    src/Token.cpp
-    src/Lexer.cpp
-    src/Parser.cpp
-    src/Value.cpp
-    src/Interpreter.cpp
-    src/TypeChecker.cpp
-)
+# Collect every .cpp under src/ automatically.
+# This means dropping new files into src/ is enough — no CMakeLists edit needed.
+file(GLOB_RECURSE QUANTUM_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
-add_executable(quantum ${SOURCES})
+# Exclude the old tree-walk entry point if it still exists alongside the new one.
+# (Both main.cpp and main_vm.cpp define main(); only one can be in the build.)
+list(FILTER QUANTUM_SOURCES EXCLUDE REGEX ".*main_vm\\.cpp$")
+list(FILTER QUANTUM_SOURCES EXCLUDE REGEX ".*Interpreter\\.cpp$")
 
-target_include_directories(quantum PRIVATE include)
+add_executable(quantum ${QUANTUM_SOURCES})
 
-# Install to /usr/local/bin so `quantum` works globally
-install(TARGETS quantum DESTINATION /usr/local/bin)
+if(WIN32)
+    target_link_libraries(quantum advapi32)
+endif()
 
-message(STATUS "Quantum Language compiler configured")
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Quantum v2.0.0 — Bytecode VM")
+message(STATUS "  Sources : ${QUANTUM_SOURCES}")
+message(STATUS "  Binary  : quantum")
+message(STATUS "  Usage   : quantum <file.sa>")
