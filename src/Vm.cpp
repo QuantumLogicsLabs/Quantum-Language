@@ -13,12 +13,17 @@
 #include <cassert>
 #include <unordered_set>
 
+// #define DEBUG_TRACE_EXECUTION
+
+#include "Disassembler.h"
+#include <iomanip>
+
 // Defined in main.cpp — true during --test runs so input() returns ""
+
 // immediately instead of blocking on stdin.
 extern bool g_testMode;
 
 // Defined in Compiler.cpp — maps QuantumNative* chunk-holders to their Chunk
-extern std::unordered_map<QuantumNative *, std::shared_ptr<Chunk>> g_chunkRegistry;
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -50,9 +55,10 @@ void VM::run(std::shared_ptr<Chunk> chunk)
     frames_.clear();
     handlers_.clear();
 
-    // Create a top-level closure
+    // Create a top-level closure and push it to stack as a dummy callee
     auto closure = std::make_shared<Closure>(chunk);
-    frames_.push_back({closure, 0, 0});
+    push(QuantumValue(closure)); 
+    frames_.push_back({closure, 0, 1}); // locals start at stack index 1
     runFrame(0);
 }
 
@@ -300,34 +306,34 @@ void VM::callValue(QuantumValue callee, int argCount, int line)
     }
     if (callee.isFunction())
     {
-        // QuantumFunction wrapping a Chunk (MAKE_FUNCTION/CLOSURE result)
-        // The VM stores closures as QuantumNative with name "__closure__"
-        throw RuntimeError("Direct QuantumFunction call not supported — use Closure", line);
+        callClosure(callee.asFunction(), argCount, line);
+        return;
     }
-
-    // Check for closure wrapper
-    auto *nat = std::get_if<std::shared_ptr<QuantumNative>>(&callee.data);
-    if (nat && (*nat)->name.substr(0, 11) == "__closure__")
+    if (callee.isBoundMethod())
     {
-        // Extract closure from fn capture
-        // (The closure is stored as a raw ptr in a separate map keyed by native ptr)
-        throw RuntimeError("Closure map not yet wired — see VM::callClosure", line);
+        auto bm = callee.asBoundMethod();
+        std::vector<QuantumValue> args;
+        for (int i = 0; i < argCount; ++i)
+            args.push_back(stack_[stack_.size() - argCount + i]);
+        for (int i = 0; i < argCount; ++i)
+            stack_.pop_back();
+        // The callee itself was on the stack before args, pop it!
+        // But what if the compiler didn't push the callee? wait, Op::CALL expects callee on stack underneath args!
+        // It's checked during CALL instruction: QuantumValue callee = stack_[stack_.size() - argCount - 1];
+        // However callValue modifies the stack natively? No, callValue doesn't pop the callee.
+        // Wait, callNativeFn pops args but NOT callee.
+        // Op::CALL pops args AND callee afterwards? Let's check callClosure.
+        // callClosure does not pop args or callee. It just sets stackBase = stack_.size() - argCount.
+        // The callee is left on the stack at slot 0 of the new frame!
+        // So for BoundMethod, we need to overwrite the callee slot with 'self', then push args.
+        // Actually, frame's slot 0 should be 'self' instead of the BoundMethod object.
+        stack_[stack_.size() - argCount - 1] = bm->self;
+        callClosure(bm->method, argCount + 1, line);
+        return;
     }
-
     throw TypeError("Cannot call value of type " + callee.typeName(), line);
 }
 
-// ─── Chunk-in-native extraction helper ───────────────────────────────────────
-// We store Closures in a side-table indexed by QuantumNative pointer.
-static std::unordered_map<QuantumNative *, std::shared_ptr<Closure>> s_closureTable;
-
-// Bound method table: maps bound-method native ptr -> {closure, self value}
-struct BoundMethod
-{
-    std::shared_ptr<Closure> closure;
-    QuantumValue self;
-};
-static std::unordered_map<QuantumNative *, BoundMethod> s_boundTable;
 
 void VM::callClosure(std::shared_ptr<Closure> closure, int argCount, int line)
 {
@@ -382,7 +388,7 @@ void VM::callClass(std::shared_ptr<QuantumClass> klass, int argCount, int line)
 
     // Look for __init__ / init
     auto *k = klass.get();
-    std::shared_ptr<QuantumFunction> initFn;
+    std::shared_ptr<Closure> initFn;
     while (k)
     {
         auto it = k->methods.find("__init__");
@@ -404,22 +410,18 @@ void VM::callClass(std::shared_ptr<QuantumClass> klass, int argCount, int line)
 
     if (initFn)
     {
-        // Find closure for this function
-        auto *fn = initFn.get();
-        auto cit = s_closureTable.find(reinterpret_cast<QuantumNative *>(fn));
-        if (cit != s_closureTable.end())
-        {
-            // Push self as first arg
-            std::vector<QuantumValue> newArgs = {instVal};
-            for (int i = argCount - 1; i >= 0; --i)
-                newArgs.push_back(stack_[stack_.size() - argCount + i]);
-            for (int i = 0; i < argCount; ++i)
-                stack_.pop_back();
-            for (auto &a : newArgs)
-                push(a);
-            callClosure(cit->second, (int)newArgs.size(), line);
-            return;
-        }
+        std::vector<QuantumValue> newArgs = {instVal};
+        for (int i = argCount - 1; i >= 0; --i)
+            newArgs.push_back(stack_[stack_.size() - argCount + i]);
+        for (int i = 0; i < argCount; ++i)
+            stack_.pop_back();
+        // Replace callee with 'self' is not needed here as we are doing manual frame push? No, we just need to replace it on the stack.
+        // Actually, pop callee.
+        stack_.pop_back();
+        for (auto &a : newArgs)
+            push(a);
+        callClosure(initFn, (int)newArgs.size(), line);
+        return;
     }
 
     // No init — pop args, push instance
@@ -450,19 +452,16 @@ QuantumValue VM::callBuiltinMethod(QuantumValue &obj, const std::string &method,
             if (it != k->methods.end())
             {
                 auto fn = it->second;
-                auto fnPtr = reinterpret_cast<QuantumNative *>(fn.get());
-                auto cit = s_closureTable.find(fnPtr);
-                if (cit != s_closureTable.end())
-                {
-                    // Push self + args
-                    push(obj);
-                    for (auto &a : args)
-                        push(a);
-                    callClosure(cit->second, (int)args.size() + 1, line);
-                    runFrame();
-                    return pop();
-                }
-                break;
+                // Pop the args and the object from stack? No, callBuiltinMethod is normally called natively.
+                // It receives obj and args as parameters.
+                push(obj);
+                for (auto &a : args)
+                    push(a);
+                callClosure(fn, (int)args.size() + 1, line);
+                // Execute the frame!
+                size_t savedDepth = frames_.size() - 1;
+                runFrame(savedDepth);
+                return pop();
             }
             k = k->base.get();
         }
@@ -505,6 +504,22 @@ void VM::runFrame(size_t stopDepth)
 
         const Instruction &instr = code[frame.ip++];
         int line = instr.line;
+
+#ifdef DEBUG_TRACE_EXECUTION
+        std::cout << "          ";
+        for (const auto &v : stack_)
+        {
+            std::cout << "[ ";
+            if (v.isString()) std::cout << "\"" << v.asString() << "\"";
+            else if (v.isNative()) std::cout << "<native " << v.asNative()->name << ">";
+            else if (v.isFunction()) std::cout << "<fn>";
+            else std::cout << v.toString();
+            std::cout << " ]";
+        }
+        std::cout << "\n";
+        disassembleInstruction(*frame.closure->chunk, frame.ip - 1, std::cout);
+        std::cout << "\n";
+#endif
 
         switch (instr.op)
         {
@@ -673,33 +688,17 @@ void VM::runFrame(size_t stopDepth)
         case Op::MAKE_FUNCTION:
         case Op::MAKE_CLOSURE:
         {
-            // Top of stack is a QuantumNative holding the chunk
             QuantumValue top = pop();
-            if (!top.isNative())
-                throw RuntimeError("MAKE_FUNCTION expects chunk holder on stack", line);
-            auto holder = top.asNative();
-            // The chunk is captured in the native's lambda; we need to extract it.
-            // Convention: we store the Chunk* in a side-table keyed by native name.
-            // Find the chunk in the table:
-            static std::unordered_map<std::string, std::shared_ptr<Chunk>> s_chunkTable;
-            auto &chunkName = holder->name; // "__chunk__funcname"
-            // Retrieve chunk via the lambda capture: call fn with a sentinel
-            // Actually we stored it using a global side-table during compilation.
-            // We use a trick: the lambda captures a shared_ptr<Chunk>.
-            // We recover it by calling the lambda with a special "get_chunk" arg.
-            // This is fragile — better design: store as a variant or custom type.
-            // Retrieve chunk from global registry
-            auto cit = g_chunkRegistry.find(holder.get());
-            if (cit == g_chunkRegistry.end())
-                throw RuntimeError("Chunk not found in registry for " + chunkName, line);
-
-            auto closure = std::make_shared<Closure>(cit->second);
-            closure->name = cit->second->name;
+            if (!top.isFunction())
+                throw RuntimeError("Expected closure template", line);
+            
+            auto tpl = top.asFunction();
+            auto closure = std::make_shared<Closure>(tpl->chunk);
 
             // Capture upvalues if MAKE_CLOSURE
-            if (instr.op == Op::MAKE_CLOSURE && cit->second->upvalueCount > 0)
+            if (instr.op == Op::MAKE_CLOSURE && closure->chunk->upvalueCount > 0)
             {
-                auto &constants = cit->second->constants;
+                auto &constants = closure->chunk->constants;
                 // Last constant is the upvalue descriptor array
                 if (!constants.empty() && constants.back().isArray())
                 {
@@ -721,205 +720,78 @@ void VM::runFrame(size_t stopDepth)
                 }
             }
 
-            // Register closure in the closure table
-            // Register under BOTH holder and callableNative so all lookup paths work
-            s_closureTable[holder.get()] = closure;
-
-            auto callableNative = std::make_shared<QuantumNative>();
-            callableNative->name = "__callable__" + closure->name;
-            // Register callableNative too — this is the key CALL/INSTANCE_NEW will find
-            s_closureTable[callableNative.get()] = closure;
-
-            // Keep a fallback fn (used only if s_closureTable lookup fails)
-            auto closureCapture = closure;
-            auto vmPtr = this;
-            callableNative->fn = [vmPtr, closureCapture](std::vector<QuantumValue> args) -> QuantumValue
-            {
-                // Run this closure as a sub-call: push frame, run until it returns
-                for (auto &a : args)
-                    vmPtr->push(a);
-                size_t base = vmPtr->stack_.size() - args.size();
-                size_t savedDepth = vmPtr->frames_.size();
-                vmPtr->frames_.push_back({closureCapture, 0, base});
-                // Run only until this new frame completes
-                while (vmPtr->frames_.size() > savedDepth)
-                {
-                    CallFrame &cf = vmPtr->frames_.back();
-                    auto &co = cf.closure->chunk->code;
-                    if (cf.ip >= co.size())
-                    {
-                        size_t b = cf.stackBase;
-                        vmPtr->frames_.pop_back();
-                        while (vmPtr->stack_.size() > b)
-                            vmPtr->stack_.pop_back();
-                        vmPtr->push(QuantumValue());
-                        break;
-                    }
-                    if (++vmPtr->stepCount_ > VM::MAX_STEPS)
-                        throw RuntimeError("Step limit exceeded");
-                    // Single-step the frame by running the full loop once
-                    // (We call runFrame which runs ALL remaining frames — depth check prevents overshoot)
-                    vmPtr->runFrame(savedDepth);
-                    break; // runFrame ran only our frame
-                }
-                if (!vmPtr->stack_.empty())
-                    return vmPtr->pop();
-                return QuantumValue();
-            };
-
-            push(QuantumValue(callableNative));
+            push(QuantumValue(closure));
             break;
         }
 
         case Op::CALL:
         {
             int argCount = instr.operand;
-            // Stack: [callee, arg0, arg1, ..., argN]  (callee is below args)
             QuantumValue callee = stack_[stack_.size() - argCount - 1];
 
-            // Instance method call shortcut: if callee is a native callable,
-            // just invoke it.
             if (callee.isNative())
             {
-                auto fn = callee.asNative();
-                std::string &nm = fn->name;
-
-                if (nm.substr(0, 12) == "__callable__")
-                {
-                    auto cit = s_closureTable.find(fn.get());
-                    if (cit != s_closureTable.end())
-                    {
-                        std::vector<QuantumValue> cargs;
-                        cargs.reserve(argCount);
-                        for (int i = 0; i < argCount; ++i)
-                            cargs.push_back(stack_[stack_.size() - argCount + i]);
-                        for (int i = 0; i <= argCount; ++i)
-                            stack_.pop_back();
-                        for (auto &a : cargs)
-                            push(a);
-                        size_t newBase = stack_.size() - argCount;
-                        frames_.push_back({cit->second, 0, newBase});
-                        break;
-                    }
-                    // Fallback (should not reach here)
-                    std::vector<QuantumValue> args2;
-                    for (int i = 0; i < argCount; ++i)
-                        args2.push_back(stack_[stack_.size() - argCount + i]);
-                    for (int i = 0; i <= argCount; ++i)
-                        stack_.pop_back();
-                    push(fn->fn(args2));
-                    break;
-                }
-                if (nm.substr(0, 9) == "__bound__")
-                {
-                    // Bound method: look up {closure, self} in s_boundTable
-                    auto bit = s_boundTable.find(fn.get());
-                    if (bit != s_boundTable.end())
-                    {
-                        auto &bm = bit->second;
-                        // Collect explicit args
-                        std::vector<QuantumValue> cargs;
-                        cargs.reserve(argCount);
-                        for (int i = 0; i < argCount; ++i)
-                            cargs.push_back(stack_[stack_.size() - argCount + i]);
-                        for (int i = 0; i <= argCount; ++i)
-                            stack_.pop_back(); // pop callee+args
-                        // Push self first, then explicit args
-                        push(bm.self);
-                        for (auto &a : cargs)
-                            push(a);
-                        size_t newBase = stack_.size() - argCount - 1; // includes self
-                        frames_.push_back({bm.closure, 0, newBase});
-                        break;
-                    }
-                    // Fallback: call fn->fn(args) directly
-                    std::vector<QuantumValue> args2;
-                    for (int i = 0; i < argCount; ++i)
-                        args2.push_back(stack_[stack_.size() - argCount + i]);
-                    for (int i = 0; i <= argCount; ++i)
-                        stack_.pop_back();
-                    push(fn->fn(args2));
-                    break;
-                }
-
-                // Regular native
                 std::vector<QuantumValue> args;
                 for (int i = 0; i < argCount; ++i)
                     args.push_back(stack_[stack_.size() - argCount + i]);
                 for (int i = 0; i <= argCount; ++i)
-                    stack_.pop_back();
-                QuantumValue res;
+                    stack_.pop_back(); // pop args and callee
                 try
                 {
-                    res = fn->fn(args);
+                    push(callee.asNative()->fn(args));
                 }
-                catch (QuantumError &)
-                {
-                    throw;
-                }
-                catch (std::exception &e)
-                {
-                    throw RuntimeError(e.what(), line);
-                }
-                push(res);
+                catch (QuantumError &) { throw; }
+                catch (std::exception &e) { throw RuntimeError(e.what(), line); }
                 break;
             }
 
             if (callee.isClass())
             {
-                std::vector<QuantumValue> args;
-                for (int i = 0; i < argCount; ++i)
-                    args.push_back(stack_[stack_.size() - argCount + i]);
-                for (int i = 0; i <= argCount; ++i)
-                    stack_.pop_back();
-
                 auto klass = callee.asClass();
                 auto inst = std::make_shared<QuantumInstance>();
                 inst->klass = klass;
                 inst->env = std::make_shared<Environment>(globals);
-
-                auto *k = klass.get();
                 QuantumValue instVal(inst);
 
-                // Look for __init__
-                while (k)
+                // Replace the class on stack with the instance (becomes 'self' and callee slot)
+                stack_[stack_.size() - argCount - 1] = instVal;
+
+                auto *k = klass.get();
+                bool initFound = false;
+                while (k && !initFound)
                 {
-                    auto it = k->methods.find("__init__");
-                    if (it == k->methods.end())
-                        it = k->methods.find("init");
-                    if (it != k->methods.end())
+                    for (const char *initName : {"__init__", "init"})
                     {
-                        auto fn2 = it->second;
-                        auto *fnPtr = reinterpret_cast<QuantumNative *>(fn2.get());
-                        auto cit = s_closureTable.find(fnPtr);
-                        if (cit != s_closureTable.end())
+                        auto it = k->methods.find(initName);
+                        if (it != k->methods.end())
                         {
-                            push(instVal);
-                            for (auto &a : args)
-                                push(a);
-                            callClosure(cit->second, (int)args.size() + 1, line);
+                            // Track that this call-frame depth should return the instance
+                            pendingInstances_.push_back({instVal, frames_.size()});
+                            callClosure(it->second, argCount + 1, line);
+                            initFound = true;
                             break;
                         }
                     }
-                    k = k->base.get();
+                    if (!initFound)
+                        k = k->base.get();
                 }
 
-                if (frames_.back().closure->chunk != frame.closure->chunk ||
-                    frames_.back().ip != frame.ip)
-                    break; // we pushed a new frame; let the loop continue
-
-                push(instVal);
+                if (!initFound)
+                {
+                    // No constructor, result is just the instance
+                    // instVal is already at [size - argCount - 1]
+                    for (int i = 0; i < argCount; ++i)
+                        stack_.pop_back();
+                }
                 break;
             }
 
             if (callee.isInstance())
             {
-                // instance() — call __call__ method
                 auto inst = callee.asInstance();
                 try
                 {
                     auto callMethod = inst->getField("__call__");
-                    // Replace callee with __call__
                     stack_[stack_.size() - argCount - 1] = callMethod;
                     frame.ip--; // re-execute CALL
                     break;
@@ -927,6 +799,20 @@ void VM::runFrame(size_t stopDepth)
                 catch (...)
                 {
                 }
+            }
+            
+            if (callee.isBoundMethod())
+            {
+                auto bm = callee.asBoundMethod();
+                stack_[stack_.size() - argCount - 1] = bm->self; // replace callee with self
+                callClosure(bm->method, argCount + 1, line);
+                break;
+            }
+            
+            if (callee.isFunction())
+            {
+                callClosure(callee.asFunction(), argCount, line);
+                break;
             }
 
             throw TypeError("Cannot call value of type " + callee.typeName(), line);
@@ -938,7 +824,8 @@ void VM::runFrame(size_t stopDepth)
             size_t base = frame.stackBase;
             closeUpvalues(base);
             frames_.pop_back();
-            while (stack_.size() > base)
+            // Trim stack back to base - 1 to remove the callee slot
+            while (stack_.size() > base - 1)
                 stack_.pop_back();
             push(std::move(result));
             break;
@@ -948,7 +835,8 @@ void VM::runFrame(size_t stopDepth)
             size_t base = frame.stackBase;
             closeUpvalues(base);
             frames_.pop_back();
-            while (stack_.size() > base)
+            // Trim stack back to base - 1 to remove the callee slot
+            while (stack_.size() > base - 1)
                 stack_.pop_back();
             if (!pendingInstances_.empty() &&
                 frames_.size() == pendingInstances_.back().second)
@@ -1076,24 +964,26 @@ void VM::runFrame(size_t stopDepth)
                     break;
                 }
 
-                // 2. Class methods: create a bound method registered in s_boundTable
+                // 2. Class methods: return a BoundMethod
                 auto *k = inst->klass.get();
                 bool found = false;
                 while (k && !found)
                 {
-                    auto mit = k->staticFields.find("__m__" + name);
-                    if (mit != k->staticFields.end() && mit->second.isNative())
+                    auto mit = k->methods.find(name);
+                    if (mit != k->methods.end())
                     {
-                        auto callable = mit->second.asNative();
-                        auto cit = s_closureTable.find(callable.get());
-                        if (cit != s_closureTable.end())
+                        auto bm = std::make_shared<QuantumBoundMethod>();
+                        bm->method = mit->second;
+                        bm->self = obj;
+                        push(QuantumValue(bm));
+                        found = true;
+                    }
+                    else
+                    {
+                        auto sit = k->staticFields.find(name);
+                        if (sit != k->staticFields.end())
                         {
-                            auto nat = std::make_shared<QuantumNative>();
-                            nat->name = "__bound__" + name;
-                            nat->fn = [](std::vector<QuantumValue>) -> QuantumValue
-                            { return QuantumValue(); };
-                            s_boundTable[nat.get()] = {cit->second, obj};
-                            push(QuantumValue(nat));
+                            push(sit->second);
                             found = true;
                         }
                     }
@@ -1252,14 +1142,10 @@ void VM::runFrame(size_t stopDepth)
             if (!classVal.isClass())
                 throw RuntimeError("BIND_METHOD: top is not a class", line);
 
-            // Store a dummy QuantumFunction for compatibility
-            auto qfn = std::make_shared<QuantumFunction>();
-            qfn->name = methodName;
-            classVal.asClass()->methods[methodName] = qfn;
-
-            // Store the actual callable native in staticFields under "__m__name"
-            // so GET_MEMBER can retrieve it directly for both class and instance calls
-            classVal.asClass()->staticFields["__m__" + methodName] = fn;
+            if (fn.isFunction())
+                classVal.asClass()->methods[methodName] = fn.asFunction();
+            else
+                classVal.asClass()->staticFields[methodName] = fn;
             break;
         }
 
@@ -1270,57 +1156,44 @@ void VM::runFrame(size_t stopDepth)
             if (!callee.isClass())
                 throw TypeError("new: expected class, got " + callee.typeName(), line);
 
-            // Pop args and callee
-            std::vector<QuantumValue> args;
-            for (int i = 0; i < argCount; ++i)
-                args.push_back(stack_[stack_.size() - argCount + i]);
-            for (int i = 0; i <= argCount; ++i)
-                stack_.pop_back();
-
             auto klass = callee.asClass();
             auto inst = std::make_shared<QuantumInstance>();
             inst->klass = klass;
             inst->env = std::make_shared<Environment>(globals);
             QuantumValue instVal(inst);
 
-            // Find __init__ or init
+            // Replace the class on stack with the instance (becomes 'self' and callee slot)
+            stack_[stack_.size() - argCount - 1] = instVal;
+
             auto *k = klass.get();
             bool initFound = false;
             while (k && !initFound)
             {
                 for (const char *initName : {"__init__", "init"})
                 {
-                    auto mit = k->staticFields.find(std::string("__m__") + initName);
-                    if (mit != k->staticFields.end() && mit->second.isNative())
+                    auto it = k->methods.find(initName);
+                    if (it != k->methods.end())
                     {
-                        auto initNat = mit->second.asNative();
-                        auto cit = s_closureTable.find(initNat.get());
-                        if (cit != s_closureTable.end())
-                        {
-                            // Push self + constructor args onto stack
-                            push(instVal);
-                            for (auto &a : args)
-                                push(a);
-                            size_t newBase = stack_.size() - (int)args.size() - 1;
-                            // Set pendingInstance_ so RETURN/RETURN_NIL pushes the
-                            // instance instead of nil when __init__ returns
-                            // Record current depth: when init returns, frames will be back to this size
-                            size_t targetDepth = frames_.size();
-                            pendingInstances_.push_back({instVal, targetDepth});
-                            frames_.push_back({cit->second, 0, newBase});
-                            initFound = true;
-                        }
+                        // Track that this call-frame depth should return the instance
+                        pendingInstances_.push_back({instVal, frames_.size()});
+                        callClosure(it->second, argCount + 1, line);
+                        initFound = true;
                         break;
                     }
                 }
-                k = k->base.get();
+                if (!initFound) k = k->base.get();
             }
 
-            // If no __init__, push the instance directly
             if (!initFound)
-                push(instVal);
+            {
+                // No constructor, result is just the instance
+                // instVal is already at [size - argCount - 1]
+                for (int i = 0; i < argCount; ++i)
+                    stack_.pop_back();
+            }
             break;
         }
+
         case Op::GET_SUPER:
         {
             const std::string &method = consts[instr.operand].asString();
@@ -1332,41 +1205,29 @@ void VM::runFrame(size_t stopDepth)
             if (!base)
                 throw RuntimeError("super: class has no base class", line);
 
-            // Normalise method name (parser converts __init__->init, toString->__str__ etc)
             std::string lookupMethod = method;
-            if (method == "__init__")
-                lookupMethod = "init";
-            else if (method == "__str__" || method == "toString")
-                lookupMethod = "__str__";
+            if (method == "__init__") lookupMethod = "init";
+            else if (method == "__str__" || method == "toString") lookupMethod = "__str__";
 
-            // Search base class hierarchy for the method
             auto *k = base.get();
             bool superFound = false;
             while (k && !superFound)
             {
-                auto mit = k->staticFields.find("__m__" + lookupMethod);
-                if (mit == k->staticFields.end())
-                    mit = k->staticFields.find("__m__" + method); // try original name too
-                if (mit != k->staticFields.end() && mit->second.isNative())
+                auto it = k->methods.find(lookupMethod);
+                if (it == k->methods.end()) it = k->methods.find(method);
+                if (it != k->methods.end())
                 {
-                    auto callable = mit->second.asNative();
-                    auto cit = s_closureTable.find(callable.get());
-                    if (cit != s_closureTable.end())
-                    {
-                        auto nat = std::make_shared<QuantumNative>();
-                        nat->name = "__bound__" + method;
-                        nat->fn = [](std::vector<QuantumValue>) -> QuantumValue
-                        { return QuantumValue(); };
-                        s_boundTable[nat.get()] = {cit->second, selfVal};
-                        push(QuantumValue(nat));
-                        superFound = true;
-                    }
+                    auto bm = std::make_shared<QuantumBoundMethod>();
+                    bm->method = it->second;
+                    bm->self = selfVal;
+                    push(QuantumValue(bm));
+                    superFound = true;
                 }
                 if (!superFound)
                     k = k->base.get();
             }
             if (!superFound)
-                push(QuantumValue()); // nil fallback
+                push(QuantumValue());
             break;
         }
 

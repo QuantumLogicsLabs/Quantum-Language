@@ -1,4 +1,5 @@
 #include "../include/Value.h"
+#include "../include/Vm.h"
 #include "../include/Error.h"
 #include <sstream>
 #include <cmath>
@@ -57,7 +58,7 @@ std::string QuantumValue::toString() const
             }
             return s + "}";
         }
-        if constexpr (std::is_same_v<T, std::shared_ptr<QuantumFunction>>) return "<fn:" + v->name + ">";
+        if constexpr (std::is_same_v<T, std::shared_ptr<Closure>>) return "<fn:" + v->name + ">";
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumNative>>)   return "<native:" + v->name + ">";
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumInstance>>) {
             // Call __str__ if defined
@@ -72,6 +73,7 @@ std::string QuantumValue::toString() const
             return "<instance:" + v->klass->name + ">";
         }
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumClass>>)    return "<class:" + v->name + ">";
+        if constexpr (std::is_same_v<T, std::shared_ptr<QuantumBoundMethod>>) return "<bound method>";
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumPointer>>) {
             if (!v || v->isNull()) return "0x0";
             // Show a deterministic fake address based on cell pointer value
@@ -95,10 +97,11 @@ std::string QuantumValue::typeName() const
         if constexpr (std::is_same_v<T, std::string>)  return "string";
         if constexpr (std::is_same_v<T, std::shared_ptr<Array>>)           return "array";
         if constexpr (std::is_same_v<T, std::shared_ptr<Dict>>)            return "dict";
-        if constexpr (std::is_same_v<T, std::shared_ptr<QuantumFunction>>) return "function";
+        if constexpr (std::is_same_v<T, std::shared_ptr<Closure>>)         return "function";
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumNative>>)   return "native";
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumInstance>>) return v->klass->name;
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumClass>>)    return "class";
+        if constexpr (std::is_same_v<T, std::shared_ptr<QuantumBoundMethod>>) return "method";
         if constexpr (std::is_same_v<T, std::shared_ptr<QuantumPointer>>)  return "pointer";
         return "unknown"; }, data);
 }

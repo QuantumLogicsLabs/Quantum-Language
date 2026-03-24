@@ -8,8 +8,6 @@
 #include <stdexcept>
 
 class Environment;
-struct ASTNode;
-class Interpreter;
 
 // ─── Value Types ──────────────────────────────────────────────────────────────
 
@@ -17,18 +15,10 @@ struct QuantumNil
 {
 };
 
-struct QuantumFunction
-{
-    std::string name;
-    std::vector<std::string> params;
-    std::vector<bool> paramIsRef; // true = pass-by-reference (int& r)
-    std::vector<ASTNode*> defaultArgs;
-    ASTNode *body;                // non-owning ptr
-    std::shared_ptr<Environment> closure;
-};
-
+struct Closure;
 struct QuantumClass;
 struct QuantumInstance;
+struct QuantumBoundMethod;
 
 using QuantumNativeFunc = std::function<struct QuantumValue(std::vector<struct QuantumValue>)>;
 
@@ -72,10 +62,11 @@ struct QuantumValue
         std::string,
         std::shared_ptr<Array>,
         std::shared_ptr<Dict>,
-        std::shared_ptr<QuantumFunction>,
+        std::shared_ptr<Closure>,
         std::shared_ptr<QuantumNative>,
         std::shared_ptr<QuantumInstance>,
         std::shared_ptr<QuantumClass>,
+        std::shared_ptr<QuantumBoundMethod>,
         std::shared_ptr<QuantumPointer>>;
 
     Data data;
@@ -88,10 +79,11 @@ struct QuantumValue
     explicit QuantumValue(std::string &&s) : data(std::move(s)) {}
     explicit QuantumValue(std::shared_ptr<Array> a) : data(std::move(a)) {}
     explicit QuantumValue(std::shared_ptr<Dict> d) : data(std::move(d)) {}
-    explicit QuantumValue(std::shared_ptr<QuantumFunction> f) : data(std::move(f)) {}
+    explicit QuantumValue(std::shared_ptr<Closure> f) : data(std::move(f)) {}
     explicit QuantumValue(std::shared_ptr<QuantumNative> n) : data(std::move(n)) {}
     explicit QuantumValue(std::shared_ptr<QuantumInstance> i) : data(std::move(i)) {}
     explicit QuantumValue(std::shared_ptr<QuantumClass> c) : data(std::move(c)) {}
+    explicit QuantumValue(std::shared_ptr<QuantumBoundMethod> bm) : data(std::move(bm)) {}
     explicit QuantumValue(std::shared_ptr<QuantumPointer> p) : data(std::move(p)) {}
 
     // Type checks
@@ -101,9 +93,10 @@ struct QuantumValue
     bool isString() const { return std::holds_alternative<std::string>(data); }
     bool isArray() const { return std::holds_alternative<std::shared_ptr<Array>>(data); }
     bool isDict() const { return std::holds_alternative<std::shared_ptr<Dict>>(data); }
-    bool isFunction() const { return std::holds_alternative<std::shared_ptr<QuantumFunction>>(data) || std::holds_alternative<std::shared_ptr<QuantumNative>>(data); }
+    bool isFunction() const { return std::holds_alternative<std::shared_ptr<Closure>>(data) || std::holds_alternative<std::shared_ptr<QuantumNative>>(data); }
     bool isInstance() const { return std::holds_alternative<std::shared_ptr<QuantumInstance>>(data); }
     bool isClass() const { return std::holds_alternative<std::shared_ptr<QuantumClass>>(data); }
+    bool isBoundMethod() const { return std::holds_alternative<std::shared_ptr<QuantumBoundMethod>>(data); }
     bool isPointer() const { return std::holds_alternative<std::shared_ptr<QuantumPointer>>(data); }
 
     // Accessors
@@ -112,9 +105,10 @@ struct QuantumValue
     std::string asString() const { return std::get<std::string>(data); }
     std::shared_ptr<Array> asArray() const { return std::get<std::shared_ptr<Array>>(data); }
     std::shared_ptr<Dict> asDict() const { return std::get<std::shared_ptr<Dict>>(data); }
-    std::shared_ptr<QuantumFunction> asFunction() const { return std::get<std::shared_ptr<QuantumFunction>>(data); }
+    std::shared_ptr<Closure> asFunction() const { return std::get<std::shared_ptr<Closure>>(data); }
     std::shared_ptr<QuantumInstance> asInstance() const { return std::get<std::shared_ptr<QuantumInstance>>(data); }
     std::shared_ptr<QuantumClass> asClass() const { return std::get<std::shared_ptr<QuantumClass>>(data); }
+    std::shared_ptr<QuantumBoundMethod> asBoundMethod() const { return std::get<std::shared_ptr<QuantumBoundMethod>>(data); }
     std::shared_ptr<QuantumPointer> asPointer() const { return std::get<std::shared_ptr<QuantumPointer>>(data); }
 
     bool isNative() const;
@@ -158,8 +152,8 @@ struct QuantumClass
 {
     std::string name;
     std::shared_ptr<QuantumClass> base;
-    std::unordered_map<std::string, std::shared_ptr<QuantumFunction>> methods;
-    std::unordered_map<std::string, std::shared_ptr<QuantumFunction>> staticMethods;
+    std::unordered_map<std::string, std::shared_ptr<Closure>> methods;
+    std::unordered_map<std::string, std::shared_ptr<Closure>> staticMethods;
     std::unordered_map<std::string, QuantumValue> staticFields;
 };
 
@@ -171,6 +165,12 @@ struct QuantumInstance
 
     QuantumValue getField(const std::string &name) const;
     void setField(const std::string &name, QuantumValue val);
+};
+
+struct QuantumBoundMethod
+{
+    std::shared_ptr<Closure> method;
+    QuantumValue self;
 };
 
 // ─── Control Flow Signals ────────────────────────────────────────────────────

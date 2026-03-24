@@ -88,10 +88,6 @@ private:
     void callClosure(std::shared_ptr<Closure> closure, int argCount, int line);
     void callNativeFn(std::shared_ptr<QuantumNative> fn, int argCount, int line);
     void callClass(std::shared_ptr<QuantumClass> klass, int argCount, int line);
-    void callInstanceMethod(std::shared_ptr<QuantumInstance> inst,
-                            std::shared_ptr<QuantumFunction> fn,
-                            std::vector<QuantumValue> args,
-                            int line);
     QuantumValue callBuiltinMethod(QuantumValue &obj,
                                    const std::string &method,
                                    std::vector<QuantumValue> args,

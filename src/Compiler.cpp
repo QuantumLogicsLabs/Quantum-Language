@@ -1,11 +1,9 @@
 #include "Compiler.h"
 #include "Error.h"
+#include "Vm.h"
 #include <stdexcept>
 #include <algorithm>
 #include <unordered_map>
-
-// ─── Global chunk registry (defined here, extern'd in VM.cpp) ────────────────
-std::unordered_map<QuantumNative *, std::shared_ptr<Chunk>> g_chunkRegistry;
 
 Compiler::Compiler() : current_(nullptr) {}
 
@@ -137,22 +135,6 @@ void Compiler::endLoop()
     loops_.pop_back();
 }
 
-// ─── Chunk-holder factory: registers chunk in g_chunkRegistry ────────────────
-static std::shared_ptr<QuantumNative> makeChunkHolder(
-    const std::string &fnName, std::shared_ptr<Chunk> ch)
-{
-    auto holder = std::make_shared<QuantumNative>();
-    holder->name = "__chunk__" + fnName;
-    auto cap = ch;
-    holder->fn = [cap](std::vector<QuantumValue>) -> QuantumValue
-    {
-        (void)cap;
-        return QuantumValue();
-    };
-    g_chunkRegistry[holder.get()] = ch;
-    return holder;
-}
-
 // ─── Node dispatch ────────────────────────────────────────────────────────────
 
 void Compiler::compileNode(ASTNode &node)
@@ -249,8 +231,8 @@ void Compiler::compileVarDecl(VarDecl &s, int line)
 void Compiler::compileFunctionDecl(FunctionDecl &s, int line)
 {
     auto fnChunk = compileFunction(s.name, s.params, s.paramIsRef, s.defaultArgs, s.body.get(), line);
-    auto holder = makeChunkHolder(s.name, fnChunk);
-    emit(Op::LOAD_CONST, addConst(QuantumValue(holder)), line);
+    auto closureTpl = std::make_shared<Closure>(fnChunk);
+    emit(Op::LOAD_CONST, addConst(QuantumValue(closureTpl)), line);
     emit(fnChunk->upvalueCount > 0 ? Op::MAKE_CLOSURE : Op::MAKE_FUNCTION, 0, line);
     if (current_->scopeDepth == 0)
     {
@@ -280,8 +262,8 @@ void Compiler::compileClassDecl(ClassDecl &s, int line)
             continue;
         auto &fd = method->as<FunctionDecl>();
         auto fnChunk = compileFunction(fd.name, fd.params, fd.paramIsRef, fd.defaultArgs, fd.body.get(), method->line);
-        auto holder = makeChunkHolder(fd.name, fnChunk);
-        emit(Op::LOAD_CONST, addConst(QuantumValue(holder)), method->line);
+        auto closureTpl = std::make_shared<Closure>(fnChunk);
+        emit(Op::LOAD_CONST, addConst(QuantumValue(closureTpl)), method->line);
         emit(Op::MAKE_FUNCTION, 0, method->line);
         emit(Op::BIND_METHOD, addStr(fd.name), method->line);
     }
@@ -705,8 +687,8 @@ void Compiler::compileLambda(LambdaExpr &e, int line)
 {
     std::vector<bool> noRef(e.params.size(), false);
     auto fnChunk = compileFunction("lambda", e.params, noRef, e.defaultArgs, e.body.get(), line);
-    auto holder = makeChunkHolder("lambda", fnChunk);
-    emit(Op::LOAD_CONST, addConst(QuantumValue(holder)), line);
+    auto closureTpl = std::make_shared<Closure>(fnChunk);
+    emit(Op::LOAD_CONST, addConst(QuantumValue(closureTpl)), line);
     emit(fnChunk->upvalueCount > 0 ? Op::MAKE_CLOSURE : Op::MAKE_FUNCTION, 0, line);
 }
 

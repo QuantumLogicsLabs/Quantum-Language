@@ -3,6 +3,8 @@ setlocal EnableDelayedExpansion
 
 echo.
 echo   Building Quantum Language v2.0.0  ^|  Bytecode VM
+echo   quantum hello.sa  ^=^>  hello.exe   ^(compile + bundle^)
+echo   qrun    hello.sa  ^=^>  runs directly  ^(interpret^)
 echo.
 
 rem ── Add MSYS2 ucrt64 to PATH for this session ─────────────────────────────────
@@ -14,7 +16,7 @@ where mingw32-make >nul 2>&1 && set "MAKE_EXE=mingw32-make" && goto :make_found
 where make         >nul 2>&1 && set "MAKE_EXE=make"         && goto :make_found
 
 echo.
-echo   [ERROR] mingw32-make still not found after searching common paths.
+echo   [ERROR] mingw32-make / make not found after searching common paths.
 echo.
 echo   Please run this in PowerShell (no admin needed) then reopen terminal:
 echo.
@@ -56,11 +58,26 @@ if errorlevel 1 (
 )
 
 cd ..
+
+rem ── Copy both binaries to the project root ────────────────────────────────────
+copy /Y build\quantum.exe quantum.exe >nul
+copy /Y build\qrun.exe    qrun.exe    >nul
+
 echo.
-echo   Build successful!  -^>  build\quantum.exe
+echo   Build successful!
 echo.
-echo   quantum hello.sa
-echo   quantum --test examples
-echo   quantum --debug hello.sa
+echo   Binaries copied to project root:
+echo     quantum.exe  ^<-- compiler + bundler
+echo     qrun.exe     ^<-- direct interpreter
+echo.
+echo   Usage:
+echo     quantum hello.sa        ^<-- compiles hello.sa into hello.exe, then you can run hello.exe
+echo     qrun    hello.sa        ^<-- interprets hello.sa in-place, no .exe created
+echo.
+echo   Other flags (both tools):
+echo     quantum --debug hello.sa    ^<-- dump bytecode then run
+echo     quantum --dis   hello.sa    ^<-- dump bytecode only
+echo     quantum --check hello.sa    ^<-- parse + type-check only
+echo     quantum --test  examples    ^<-- batch test all .sa files
 echo.
 endlocal

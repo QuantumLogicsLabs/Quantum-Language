@@ -28,6 +28,7 @@
 #include "TypeChecker.h"
 #include "Error.h"
 #include "Value.h"
+#include "Serializer.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -35,6 +36,7 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <cstring>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -50,6 +52,56 @@ namespace fs = std::filesystem;
 
 // ─── Global test-mode flag (keeps input() from blocking in --test runs) ───────
 bool g_testMode = false;
+
+// ─── Embedded Executable Loaders ──────────────────────────────────────────────
+
+static std::string getExecutablePath(const char *argv0)
+{
+#ifdef _WIN32
+    char buffer[MAX_PATH];
+    GetModuleFileNameA(NULL, buffer, MAX_PATH);
+    return std::string(buffer);
+#else
+    return std::string(argv0);
+#endif
+}
+
+static std::shared_ptr<Chunk> loadEmbeddedBytecode(const std::string &exePath)
+{
+    std::ifstream file(exePath, std::ios::binary | std::ios::ate);
+    if (!file)
+        return nullptr;
+
+    std::streamsize size = file.tellg();
+    if (size < 12)
+        return nullptr;
+
+    file.seekg(size - 8, std::ios::beg);
+    char magic[8];
+    file.read(magic, 8);
+    if (std::memcmp(magic, "QNTM_VM!", 8) != 0)
+        return nullptr;
+
+    file.seekg(size - 12, std::ios::beg);
+    uint32_t payloadSize = 0;
+    file.read(reinterpret_cast<char *>(&payloadSize), 4);
+
+    if (payloadSize == 0 || size < payloadSize + 12)
+        return nullptr;
+
+    file.seekg(size - 12 - payloadSize, std::ios::beg);
+    std::vector<uint8_t> payload(payloadSize);
+    file.read(reinterpret_cast<char *>(payload.data()), payloadSize);
+
+    try
+    {
+        return Serializer::deserialize(payload);
+    }
+    catch (...)
+    {
+        return nullptr;
+    }
+}
 
 // ─── Banner ───────────────────────────────────────────────────────────────────
 
@@ -662,7 +714,8 @@ static void printHelp(const char *prog)
               << "  " << prog << " --check  <file.sa>      Parse + type-check only\n"
               << "  " << prog << " --test   [dir]          Batch-test all .sa files\n"
               << "  " << prog << " --debug  <file.sa>      Dump bytecode then run\n"
-              << "  " << prog << " --dis    <file.sa>      Dump bytecode, no execution\n\n"
+              << "  " << prog << " --dis    <file.sa>      Dump bytecode, no execution\n"
+              << "  " << prog << " --run    <file.sa>      Run script directly (no .exe created)\n\n"
               << Colors::BOLD << "File extension:\n"
               << Colors::RESET
               << "  Quantum scripts use the .sa extension\n\n"
@@ -679,14 +732,30 @@ static void printHelp(const char *prog)
               << "  Pipeline: Source → Lexer → Parser → AST → Compiler → Chunk → VM\n";
 }
 
-// ─── main ─────────────────────────────────────────────────────────────────────
-
 int main(int argc, char *argv[])
 {
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 #endif
+
+    // ── Pre-check for embedded bytecode execution ─────────────────────────
+    std::string exePath = getExecutablePath(argv[0]);
+    auto embeddedChunk = loadEmbeddedBytecode(exePath);
+    if (embeddedChunk)
+    {
+        try
+        {
+            VM vm;
+            vm.run(embeddedChunk);
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << Colors::RED << "[Fatal] " << Colors::RESET << e.what() << "\n";
+            return 1;
+        }
+        return 0;
+    }
 
     if (argc == 1)
     {
@@ -761,7 +830,93 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // ── Default: run the file ──────────────────────────────────────────────
+    if (arg == "--run" && argc >= 3)
+    {
+        // Directly interpret and execute the script (no .exe generated)
+        runFile(argv[2]);
+        return 0;
+    }
+
+    // ── Executable Generator or Direct Runner (qrun vs quantum) ────────────
+    //
+    // QRUN_MODE is defined at compile-time when building the `qrun` target.
+    // The `quantum` target never defines it, so it always goes to the bundler.
+    // This is more reliable than detecting the exe name at runtime.
+#ifdef QRUN_MODE
     runFile(arg);
+    return 0;
+#endif
+
+    // Default: compile the script and bundle it into a standalone .exe
+    std::string path = arg;
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        std::cerr << Colors::RED << "[Error] " << Colors::RESET
+                  << "Cannot open file: " << path << "\n";
+        return 1;
+    }
+
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    std::string source = ss.str();
+
+    std::shared_ptr<Chunk> chunk;
+    try
+    {
+        chunk = compileSource(source, path, false);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << Colors::RED << "[Compile Error] " << Colors::RESET << e.what() << "\n";
+        return 1;
+    }
+
+    std::vector<uint8_t> payload = Serializer::serialize(chunk);
+    uint32_t payloadSize = static_cast<uint32_t>(payload.size());
+
+    // The bundled .exe must be a copy of quantum.exe (the compiler binary),
+    // NOT qrun.exe. We locate quantum.exe next to whichever binary is running.
+    fs::path selfDir = fs::path(exePath).parent_path();
+    std::string quantumStub = (selfDir / "quantum.exe").string();
+    // Fallback: if quantum.exe is not found beside us, use ourselves
+    if (!fs::exists(quantumStub))
+        quantumStub = exePath;
+
+    fs::path srcPath(path);
+    std::string outName = (srcPath.parent_path() / srcPath.stem()).string() + ".exe";
+
+    // Safety: never let the bundled output overwrite a "quantum" binary itself
+    {
+        std::string outBase = fs::path(outName).stem().string();
+        std::transform(outBase.begin(), outBase.end(), outBase.begin(), ::tolower);
+        if (outBase == "quantum")
+            outName = (srcPath.parent_path() / (srcPath.stem().string() + "_bundled")).string() + ".exe";
+    }
+
+    try
+    {
+        fs::copy_file(quantumStub, outName, fs::copy_options::overwrite_existing);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << Colors::RED << "[Error] " << Colors::RESET << "Failed to generate executable: " << e.what() << "\n";
+        return 1;
+    }
+
+    // Append payload to new executable
+    std::ofstream outFile(outName, std::ios::binary | std::ios::app);
+    if (!outFile)
+    {
+        std::cerr << Colors::RED << "[Error] " << Colors::RESET << "Failed to open generated executable for appending.\n";
+        return 1;
+    }
+
+    outFile.write(reinterpret_cast<const char *>(payload.data()), payloadSize);
+    outFile.write(reinterpret_cast<const char *>(&payloadSize), 4);
+    outFile.write("QNTM_VM!", 8);
+    outFile.close();
+
+    std::cout << Colors::GREEN << "[Success] " << Colors::RESET << "Compiled " << path << " -> " << outName << " (" << payloadSize << " bytes appended)\n";
     return 0;
 }
