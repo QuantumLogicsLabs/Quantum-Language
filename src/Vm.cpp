@@ -9,6 +9,7 @@
 #include <regex>
 #include <random>
 #include <chrono>
+#include <thread>
 #include <limits>
 #include <cassert>
 #include <unordered_set>
@@ -1847,6 +1848,675 @@ void VM::registerNatives()
     }
 
     globals->define("console", QuantumValue(consoleDict));
+
+    // ── Crypto / Hashing ─────────────────────────────────────────────────
+
+    // ---- SHA-256 ----
+    reg("sha256", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("sha256() requires 1 argument");
+        const std::string &s = args[0].toString();
+        // Standard SHA-256 implementation
+        auto rotr = [](uint32_t x, int n){ return (x >> n) | (x << (32-n)); };
+        const uint32_t K[64] = {
+            0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+        };
+        uint32_t H[8] = {0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
+                         0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};
+        std::vector<uint8_t> msg(s.begin(), s.end());
+        uint64_t bitlen = msg.size() * 8;
+        msg.push_back(0x80);
+        while (msg.size() % 64 != 56) msg.push_back(0);
+        for (int i = 7; i >= 0; i--) msg.push_back((bitlen >> (i*8)) & 0xFF);
+        for (size_t chunk = 0; chunk < msg.size(); chunk += 64) {
+            uint32_t w[64];
+            for (int i = 0; i < 16; i++)
+                w[i] = ((uint32_t)msg[chunk+i*4]<<24)|((uint32_t)msg[chunk+i*4+1]<<16)|
+                        ((uint32_t)msg[chunk+i*4+2]<<8)|(uint32_t)msg[chunk+i*4+3];
+            for (int i = 16; i < 64; i++) {
+                uint32_t s0 = rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>3);
+                uint32_t s1 = rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>10);
+                w[i] = w[i-16]+s0+w[i-7]+s1;
+            }
+            uint32_t a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+            for (int i = 0; i < 64; i++) {
+                uint32_t S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
+                uint32_t ch=(e&f)^((~e)&g);
+                uint32_t temp1=h+S1+ch+K[i]+w[i];
+                uint32_t S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
+                uint32_t maj=(a&b)^(a&c)^(b&c);
+                uint32_t temp2=S0+maj;
+                h=g; g=f; f=e; e=d+temp1; d=c; c=b; b=a; a=temp1+temp2;
+            }
+            H[0]+=a; H[1]+=b; H[2]+=c; H[3]+=d;
+            H[4]+=e; H[5]+=f; H[6]+=g; H[7]+=h;
+        }
+        char buf[65];
+        snprintf(buf,sizeof(buf),"%08x%08x%08x%08x%08x%08x%08x%08x",
+                 H[0],H[1],H[2],H[3],H[4],H[5],H[6],H[7]);
+        return QuantumValue(std::string(buf)); });
+
+    // ---- SHA-1 ----
+    reg("sha1", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("sha1() requires 1 argument");
+        const std::string &s = args[0].toString();
+        auto rotl = [](uint32_t x, int n){ return (x << n) | (x >> (32-n)); };
+        uint32_t H[5] = {0x67452301,0xEFCDAB89,0x98BADCFE,0x10325476,0xC3D2E1F0};
+        std::vector<uint8_t> msg(s.begin(), s.end());
+        uint64_t bitlen = msg.size() * 8;
+        msg.push_back(0x80);
+        while (msg.size() % 64 != 56) msg.push_back(0);
+        for (int i = 7; i >= 0; i--) msg.push_back((bitlen >> (i*8)) & 0xFF);
+        for (size_t chunk = 0; chunk < msg.size(); chunk += 64) {
+            uint32_t w[80];
+            for (int i = 0; i < 16; i++)
+                w[i] = ((uint32_t)msg[chunk+i*4]<<24)|((uint32_t)msg[chunk+i*4+1]<<16)|
+                        ((uint32_t)msg[chunk+i*4+2]<<8)|(uint32_t)msg[chunk+i*4+3];
+            for (int i = 16; i < 80; i++) w[i] = rotl(w[i-3]^w[i-8]^w[i-14]^w[i-16],1);
+            uint32_t a=H[0],b=H[1],c=H[2],d=H[3],e=H[4];
+            for (int i = 0; i < 80; i++) {
+                uint32_t f,k;
+                if (i<20){f=(b&c)|((~b)&d);k=0x5A827999;}
+                else if(i<40){f=b^c^d;k=0x6ED9EBA1;}
+                else if(i<60){f=(b&c)|(b&d)|(c&d);k=0x8F1BBCDC;}
+                else{f=b^c^d;k=0xCA62C1D6;}
+                uint32_t temp=rotl(a,5)+f+e+k+w[i];
+                e=d; d=c; c=rotl(b,30); b=a; a=temp;
+            }
+            H[0]+=a; H[1]+=b; H[2]+=c; H[3]+=d; H[4]+=e;
+        }
+        char buf[41];
+        snprintf(buf,sizeof(buf),"%08x%08x%08x%08x%08x",H[0],H[1],H[2],H[3],H[4]);
+        return QuantumValue(std::string(buf)); });
+
+    // ---- MD5 ----
+    reg("md5", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("md5() requires 1 argument");
+        const std::string &s = args[0].toString();
+        const uint32_t T[64] = {
+            0xd76aa478,0xe8c7b756,0x242070db,0xc1bdceee,0xf57c0faf,0x4787c62a,0xa8304613,0xfd469501,
+            0x698098d8,0x8b44f7af,0xffff5bb1,0x895cd7be,0x6b901122,0xfd987193,0xa679438e,0x49b40821,
+            0xf61e2562,0xc040b340,0x265e5a51,0xe9b6c7aa,0xd62f105d,0x02441453,0xd8a1e681,0xe7d3fbc8,
+            0x21e1cde6,0xc33707d6,0xf4d50d87,0x455a14ed,0xa9e3e905,0xfcefa3f8,0x676f02d9,0x8d2a4c8a,
+            0xfffa3942,0x8771f681,0x6d9d6122,0xfde5380c,0xa4beea44,0x4bdecfa9,0xf6bb4b60,0xbebfbc70,
+            0x289b7ec6,0xeaa127fa,0xd4ef3085,0x04881d05,0xd9d4d039,0xe6db99e5,0x1fa27cf8,0xc4ac5665,
+            0xf4292244,0x432aff97,0xab9423a7,0xfc93a039,0x655b59c3,0x8f0ccc92,0xffeff47d,0x85845dd1,
+            0x6fa87e4f,0xfe2ce6e0,0xa3014314,0x4e0811a1,0xf7537e82,0xbd3af235,0x2ad7d2bb,0xeb86d391
+        };
+        const int S[64] = {7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,
+                           5, 9,14,20,5, 9,14,20,5, 9,14,20,5, 9,14,20,
+                           4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,
+                           6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21};
+        auto rotl = [](uint32_t x, int n){ return (x<<n)|(x>>(32-n)); };
+        uint32_t a0=0x67452301,b0=0xefcdab89,c0=0x98badcfe,d0=0x10325476;
+        std::vector<uint8_t> msg(s.begin(), s.end());
+        uint64_t bitlen = msg.size() * 8;
+        msg.push_back(0x80);
+        while (msg.size() % 64 != 56) msg.push_back(0);
+        for (int i = 0; i < 8; i++) msg.push_back((bitlen >> (i*8)) & 0xFF);
+        for (size_t chunk = 0; chunk < msg.size(); chunk += 64) {
+            uint32_t M[16];
+            for (int i = 0; i < 16; i++)
+                M[i] = (uint32_t)msg[chunk+i*4]|((uint32_t)msg[chunk+i*4+1]<<8)|
+                        ((uint32_t)msg[chunk+i*4+2]<<16)|((uint32_t)msg[chunk+i*4+3]<<24);
+            uint32_t A=a0,B=b0,C=c0,D=d0;
+            for (int i = 0; i < 64; i++) {
+                uint32_t F; int g;
+                if(i<16){F=(B&C)|(~B&D);g=i;}
+                else if(i<32){F=(D&B)|(~D&C);g=(5*i+1)%16;}
+                else if(i<48){F=B^C^D;g=(3*i+5)%16;}
+                else{F=C^(B|(~D));g=(7*i)%16;}
+                F+=A+T[i]+M[g];
+                A=D; D=C; C=B; B+=rotl(F,S[i]);
+            }
+            a0+=A; b0+=B; c0+=C; d0+=D;
+        }
+        char buf[33];
+        // MD5 outputs in little-endian byte order
+        snprintf(buf,sizeof(buf),"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            a0&0xFF,(a0>>8)&0xFF,(a0>>16)&0xFF,(a0>>24)&0xFF,
+            b0&0xFF,(b0>>8)&0xFF,(b0>>16)&0xFF,(b0>>24)&0xFF,
+            c0&0xFF,(c0>>8)&0xFF,(c0>>16)&0xFF,(c0>>24)&0xFF,
+            d0&0xFF,(d0>>8)&0xFF,(d0>>16)&0xFF,(d0>>24)&0xFF);
+        return QuantumValue(std::string(buf)); });
+
+    // ---- HMAC-SHA256 (reuses sha256 logic inline) ----
+    reg("hmac_sha256", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("hmac_sha256() requires 2 arguments: key, message");
+        std::string key = args[0].toString();
+        std::string message = args[1].toString();
+
+        auto sha256bytes = [](const std::vector<uint8_t>& data) -> std::vector<uint8_t> {
+            auto rotr = [](uint32_t x, int n){ return (x >> n) | (x << (32-n)); };
+            const uint32_t K[64] = {
+                0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+                0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+                0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+                0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+                0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+                0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+                0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+                0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+            };
+            uint32_t H[8] = {0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
+                             0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};
+            std::vector<uint8_t> msg(data);
+            uint64_t bitlen = msg.size() * 8;
+            msg.push_back(0x80);
+            while (msg.size() % 64 != 56) msg.push_back(0);
+            for (int i = 7; i >= 0; i--) msg.push_back((bitlen >> (i*8)) & 0xFF);
+            for (size_t chunk = 0; chunk < msg.size(); chunk += 64) {
+                uint32_t w[64];
+                for (int i = 0; i < 16; i++)
+                    w[i] = ((uint32_t)msg[chunk+i*4]<<24)|((uint32_t)msg[chunk+i*4+1]<<16)|
+                            ((uint32_t)msg[chunk+i*4+2]<<8)|(uint32_t)msg[chunk+i*4+3];
+                for (int i = 16; i < 64; i++) {
+                    uint32_t s0 = rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>3);
+                    uint32_t s1 = rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>10);
+                    w[i] = w[i-16]+s0+w[i-7]+s1;
+                }
+                uint32_t a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+                for (int i = 0; i < 64; i++) {
+                    uint32_t S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
+                    uint32_t ch=(e&f)^((~e)&g);
+                    uint32_t temp1=h+S1+ch+K[i]+w[i];
+                    uint32_t S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
+                    uint32_t maj=(a&b)^(a&c)^(b&c);
+                    uint32_t temp2=S0+maj;
+                    h=g; g=f; f=e; e=d+temp1; d=c; c=b; b=a; a=temp1+temp2;
+                }
+                H[0]+=a; H[1]+=b; H[2]+=c; H[3]+=d;
+                H[4]+=e; H[5]+=f; H[6]+=g; H[7]+=h;
+            }
+            std::vector<uint8_t> out(32);
+            for (int i = 0; i < 8; i++) {
+                out[i*4]=(H[i]>>24)&0xFF; out[i*4+1]=(H[i]>>16)&0xFF;
+                out[i*4+2]=(H[i]>>8)&0xFF; out[i*4+3]=H[i]&0xFF;
+            }
+            return out;
+        };
+
+        // HMAC: if key > 64 bytes, hash it
+        std::vector<uint8_t> k(key.begin(), key.end());
+        if (k.size() > 64) k = sha256bytes(k);
+        k.resize(64, 0);
+
+        std::vector<uint8_t> ipad(64, 0x36), opad(64, 0x5c);
+        std::vector<uint8_t> inner, outer;
+        for (int i = 0; i < 64; i++) { ipad[i] ^= k[i]; opad[i] ^= k[i]; }
+        inner.insert(inner.end(), ipad.begin(), ipad.end());
+        inner.insert(inner.end(), message.begin(), message.end());
+        auto inner_hash = sha256bytes(inner);
+        outer.insert(outer.end(), opad.begin(), opad.end());
+        outer.insert(outer.end(), inner_hash.begin(), inner_hash.end());
+        auto result = sha256bytes(outer);
+
+        char buf[65];
+        for (int i = 0; i < 32; i++) sprintf(buf+i*2, "%02x", result[i]);
+        buf[64] = 0;
+        return QuantumValue(std::string(buf)); });
+
+    // ---- AES-128 ECB encrypt/decrypt (with PKCS#7 padding) ----
+    auto aes128_block = [](const uint8_t key[16], const uint8_t in[16], uint8_t out[16], bool encrypt)
+    {
+        // AES S-box and inverse
+        static const uint8_t sbox[256] = {
+            0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+            0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+            0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+            0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+            0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+            0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+            0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+            0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+            0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+            0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+            0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+            0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+            0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+            0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+            0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+            0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16};
+        static const uint8_t inv_sbox[256] = {
+            0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
+            0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
+            0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
+            0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25,
+            0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92,
+            0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84,
+            0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06,
+            0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b,
+            0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73,
+            0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e,
+            0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b,
+            0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4,
+            0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f,
+            0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
+            0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
+            0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d};
+        auto xtime = [](uint8_t a) -> uint8_t
+        { return (a << 1) ^ ((a >> 7) * 0x1b); };
+        auto mul = [&](uint8_t a, uint8_t b) -> uint8_t
+        {
+            uint8_t r = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                if (b & 1)
+                    r ^= a;
+                a = xtime(a);
+                b >>= 1;
+            }
+            return r;
+        };
+
+        // Key expansion
+        uint8_t rk[11][16];
+        memcpy(rk[0], key, 16);
+        const uint8_t rcon[11] = {0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36};
+        for (int r = 1; r <= 10; r++)
+        {
+            uint8_t t[4] = {rk[r - 1][12], rk[r - 1][13], rk[r - 1][14], rk[r - 1][15]};
+            uint8_t tmp = t[0];
+            t[0] = sbox[t[1]] ^ rcon[r];
+            t[1] = sbox[t[2]];
+            t[2] = sbox[t[3]];
+            t[3] = sbox[tmp];
+            for (int i = 0; i < 4; i++)
+                rk[r][i] = rk[r - 1][i] ^ t[i];
+            for (int i = 4; i < 16; i++)
+                rk[r][i] = rk[r - 1][i] ^ rk[r][i - 4];
+        }
+
+        uint8_t state[4][4];
+        for (int i = 0; i < 16; i++)
+            state[i % 4][i / 4] = in[i];
+
+        if (encrypt)
+        {
+            // AddRoundKey
+            for (int i = 0; i < 4; i++)
+                for (int j = 0; j < 4; j++)
+                    state[i][j] ^= rk[0][j * 4 + i];
+            for (int r = 1; r <= 10; r++)
+            {
+                // SubBytes
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
+                        state[i][j] = sbox[state[i][j]];
+                // ShiftRows
+                uint8_t tmp;
+                tmp = state[1][0];
+                state[1][0] = state[1][1];
+                state[1][1] = state[1][2];
+                state[1][2] = state[1][3];
+                state[1][3] = tmp;
+                tmp = state[2][0];
+                state[2][0] = state[2][2];
+                state[2][2] = tmp;
+                tmp = state[2][1];
+                state[2][1] = state[2][3];
+                state[2][3] = tmp;
+                tmp = state[3][3];
+                state[3][3] = state[3][2];
+                state[3][2] = state[3][1];
+                state[3][1] = state[3][0];
+                state[3][0] = tmp;
+                // MixColumns (skip last round)
+                if (r < 10)
+                {
+                    for (int c = 0; c < 4; c++)
+                    {
+                        uint8_t s0 = state[0][c], s1 = state[1][c], s2 = state[2][c], s3 = state[3][c];
+                        state[0][c] = mul(s0, 2) ^ mul(s1, 3) ^ s2 ^ s3;
+                        state[1][c] = s0 ^ mul(s1, 2) ^ mul(s2, 3) ^ s3;
+                        state[2][c] = s0 ^ s1 ^ mul(s2, 2) ^ mul(s3, 3);
+                        state[3][c] = mul(s0, 3) ^ s1 ^ s2 ^ mul(s3, 2);
+                    }
+                }
+                // AddRoundKey
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
+                        state[i][j] ^= rk[r][j * 4 + i];
+            }
+        }
+        else
+        {
+            // Decrypt
+            for (int i = 0; i < 4; i++)
+                for (int j = 0; j < 4; j++)
+                    state[i][j] ^= rk[10][j * 4 + i];
+            for (int r = 9; r >= 0; r--)
+            {
+                // InvShiftRows
+                uint8_t tmp;
+                tmp = state[1][3];
+                state[1][3] = state[1][2];
+                state[1][2] = state[1][1];
+                state[1][1] = state[1][0];
+                state[1][0] = tmp;
+                tmp = state[2][0];
+                state[2][0] = state[2][2];
+                state[2][2] = tmp;
+                tmp = state[2][1];
+                state[2][1] = state[2][3];
+                state[2][3] = tmp;
+                tmp = state[3][0];
+                state[3][0] = state[3][1];
+                state[3][1] = state[3][2];
+                state[3][2] = state[3][3];
+                state[3][3] = tmp;
+                // InvSubBytes
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
+                        state[i][j] = inv_sbox[state[i][j]];
+                // AddRoundKey
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
+                        state[i][j] ^= rk[r][j * 4 + i];
+                // InvMixColumns (skip round 0)
+                if (r > 0)
+                {
+                    for (int c = 0; c < 4; c++)
+                    {
+                        uint8_t s0 = state[0][c], s1 = state[1][c], s2 = state[2][c], s3 = state[3][c];
+                        state[0][c] = mul(s0, 0x0e) ^ mul(s1, 0x0b) ^ mul(s2, 0x0d) ^ mul(s3, 0x09);
+                        state[1][c] = mul(s0, 0x09) ^ mul(s1, 0x0e) ^ mul(s2, 0x0b) ^ mul(s3, 0x0d);
+                        state[2][c] = mul(s0, 0x0d) ^ mul(s1, 0x09) ^ mul(s2, 0x0e) ^ mul(s3, 0x0b);
+                        state[3][c] = mul(s0, 0x0b) ^ mul(s1, 0x0d) ^ mul(s2, 0x09) ^ mul(s3, 0x0e);
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < 16; i++)
+            out[i] = state[i % 4][i / 4];
+    };
+
+    reg("aes128_ecb_encrypt", [aes128_block](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("aes128_ecb_encrypt() requires key, plaintext");
+        std::string key = args[0].toString();
+        std::string pt  = args[1].toString();
+        // Pad/truncate key to 16 bytes
+        uint8_t k[16] = {};
+        for (int i = 0; i < 16 && i < (int)key.size(); i++) k[i] = (uint8_t)key[i];
+        // PKCS#7 pad plaintext to multiple of 16
+        int pad = 16 - (pt.size() % 16);
+        for (int i = 0; i < pad; i++) pt += (char)pad;
+        std::string ct;
+        for (size_t i = 0; i < pt.size(); i += 16) {
+            uint8_t in[16], out[16];
+            for (int j = 0; j < 16; j++) in[j] = (uint8_t)pt[i+j];
+            aes128_block(k, in, out, true);
+            for (int j = 0; j < 16; j++) ct += (char)out[j];
+        }
+        return QuantumValue(ct); });
+
+    reg("aes128_ecb_decrypt", [aes128_block](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("aes128_ecb_decrypt() requires key, ciphertext");
+        std::string key = args[0].toString();
+        std::string ct  = args[1].toString();
+        if (ct.size() % 16 != 0) throw RuntimeError("aes128_ecb_decrypt: ciphertext length must be multiple of 16");
+        uint8_t k[16] = {};
+        for (int i = 0; i < 16 && i < (int)key.size(); i++) k[i] = (uint8_t)key[i];
+        std::string pt;
+        for (size_t i = 0; i < ct.size(); i += 16) {
+            uint8_t in[16], out[16];
+            for (int j = 0; j < 16; j++) in[j] = (uint8_t)ct[i+j];
+            aes128_block(k, in, out, false);
+            for (int j = 0; j < 16; j++) pt += (char)out[j];
+        }
+        // Remove PKCS#7 padding
+        if (!pt.empty()) {
+            uint8_t pad = (uint8_t)pt.back();
+            if (pad > 0 && pad <= 16) {
+                bool valid = true;
+                for (int i = 0; i < pad; i++)
+                    if ((uint8_t)pt[pt.size()-1-i] != pad) { valid = false; break; }
+                if (valid) pt.resize(pt.size() - pad);
+            }
+        }
+        return QuantumValue(pt); });
+
+    // ---- Vigenere cipher ----
+    reg("vigenere_encrypt", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("vigenere_encrypt() requires key, text");
+        std::string key  = args[0].toString();
+        std::string text = args[1].toString();
+        std::string result;
+        int ki = 0;
+        for (char c : text) {
+            if (std::isalpha((unsigned char)c)) {
+                int base = std::isupper((unsigned char)c) ? 'A' : 'a';
+                int shift = std::toupper((unsigned char)key[ki % key.size()]) - 'A';
+                result += (char)((c - base + shift) % 26 + base);
+                ki++;
+            } else {
+                result += c;
+            }
+        }
+        return QuantumValue(result); });
+
+    reg("vigenere_decrypt", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("vigenere_decrypt() requires key, text");
+        std::string key  = args[0].toString();
+        std::string text = args[1].toString();
+        std::string result;
+        int ki = 0;
+        for (char c : text) {
+            if (std::isalpha((unsigned char)c)) {
+                int base = std::isupper((unsigned char)c) ? 'A' : 'a';
+                int shift = std::toupper((unsigned char)key[ki % key.size()]) - 'A';
+                result += (char)((c - base - shift + 26) % 26 + base);
+                ki++;
+            } else {
+                result += c;
+            }
+        }
+        return QuantumValue(result); });
+
+    // ---- XOR bytes ----
+    reg("xor_bytes", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("xor_bytes() requires data, key");
+        std::string data = args[0].toString();
+        std::string key  = args[1].toString();
+        if (key.empty()) throw RuntimeError("xor_bytes(): key must not be empty");
+        std::string result;
+        for (size_t i = 0; i < data.size(); i++)
+            result += (char)((uint8_t)data[i] ^ (uint8_t)key[i % key.size()]);
+        return QuantumValue(result); });
+
+    // ---- ROT-13 ----
+    reg("rot13", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("rot13() requires 1 argument");
+        std::string s = args[0].toString();
+        for (char &c : s) {
+            if (c >= 'a' && c <= 'z') c = (c - 'a' + 13) % 26 + 'a';
+            else if (c >= 'A' && c <= 'Z') c = (c - 'A' + 13) % 26 + 'A';
+        }
+        return QuantumValue(s); });
+
+    // ---- Base64 encode/decode ----
+    reg("base64_encode", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("base64_encode() requires 1 argument");
+        const std::string &s = args[0].toString();
+        static const char tbl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        std::string out;
+        int val=0, bits=-6;
+        for (uint8_t c : s) {
+            val = (val << 8) + c; bits += 8;
+            while (bits >= 0) { out += tbl[(val >> bits) & 0x3F]; bits -= 6; }
+        }
+        if (bits > -6) out += tbl[((val << 8) >> (bits+8)) & 0x3F];
+        while (out.size() % 4) out += '=';
+        return QuantumValue(out); });
+
+    reg("base64_decode", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("base64_decode() requires 1 argument");
+        const std::string &s = args[0].toString();
+        static const int tbl[256] = {
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-2,-1,-1,
+            -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
+            -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+            -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+        };
+        std::string out;
+        int val=0, bits=-8;
+        for (uint8_t c : s) {
+            int v = tbl[c];
+            if (v == -1) continue; // skip invalid
+            if (v == -2) break;    // padding '='
+            val = (val << 6) + v; bits += 6;
+            if (bits >= 0) { out += (char)((val >> bits) & 0xFF); bits -= 8; }
+        }
+        return QuantumValue(out); });
+
+    // ---- Hex encode/decode ----
+    reg("to_hex", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("to_hex() requires 1 argument");
+        const std::string &s = args[0].toString();
+        std::string out;
+        char buf[3];
+        for (uint8_t c : s) { snprintf(buf,sizeof(buf),"%02x",c); out+=buf; }
+        return QuantumValue(out); });
+
+    reg("from_hex", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("from_hex() requires 1 argument");
+        std::string s = args[0].toString();
+        std::string out;
+        for (size_t i = 0; i+1 < s.size(); i += 2) {
+            char buf[3] = {s[i], s[i+1], 0};
+            out += (char)strtol(buf, nullptr, 16);
+        }
+        return QuantumValue(out); });
+
+    // ---- Secure random ----
+    reg("secure_random_hex", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        int n = args.empty() ? 16 : (int)args[0].asNumber();
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(0, 255);
+        std::string out;
+        char buf[3];
+        for (int i = 0; i < n; i++) { snprintf(buf,sizeof(buf),"%02x",dist(gen)); out+=buf; }
+        return QuantumValue(out); });
+
+    reg("secure_random_int", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        int lo = args.size() >= 1 ? (int)args[0].asNumber() : 0;
+        int hi = args.size() >= 2 ? (int)args[1].asNumber() : 255;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(lo, hi);
+        return QuantumValue((double)dist(gen)); });
+
+    // ---- Shannon entropy ----
+    reg("entropy", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("entropy() requires 1 argument");
+        std::string s = args[0].toString();
+        if (s.empty()) return QuantumValue(0.0);
+        std::unordered_map<char,int> freq;
+        for (char c : s) freq[c]++;
+        double e = 0.0, n = s.size();
+        for (auto &[c,cnt] : freq) {
+            double p = cnt / n;
+            e -= p * std::log2(p);
+        }
+        return QuantumValue(e); });
+
+    // ---- Luhn algorithm ----
+    reg("luhn_check", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("luhn_check() requires 1 argument");
+        std::string s = args[0].toString();
+        int sum = 0; bool alt = false;
+        for (int i = (int)s.size()-1; i >= 0; i--) {
+            if (!std::isdigit((unsigned char)s[i])) continue;
+            int d = s[i] - '0';
+            if (alt) { d *= 2; if (d > 9) d -= 9; }
+            sum += d; alt = !alt;
+        }
+        return QuantumValue(sum % 10 == 0); });
+
+    // ---- PKCS#7 padding ----
+    reg("pkcs7_pad", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("pkcs7_pad() requires data, block_size");
+        std::string s = args[0].toString();
+        int bs = (int)args[1].asNumber();
+        if (bs < 1 || bs > 255) throw RuntimeError("pkcs7_pad(): block_size must be 1-255");
+        int pad = bs - (s.size() % bs);
+        for (int i = 0; i < pad; i++) s += (char)pad;
+        return QuantumValue(s); });
+
+    reg("pkcs7_unpad", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) throw RuntimeError("pkcs7_unpad() requires 1 argument");
+        std::string s = args[0].toString();
+        if (s.empty()) return QuantumValue(s);
+        uint8_t pad = (uint8_t)s.back();
+        if (pad == 0 || pad > s.size()) return QuantumValue(s);
+        for (int i = 0; i < pad; i++)
+            if ((uint8_t)s[s.size()-1-i] != pad) return QuantumValue(s);
+        s.resize(s.size() - pad);
+        return QuantumValue(s); });
+
+    // ---- Constant-time equality ----
+    reg("constant_time_eq", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.size() < 2) throw RuntimeError("constant_time_eq() requires 2 arguments");
+        std::string a = args[0].toString();
+        std::string b = args[1].toString();
+        if (a.size() != b.size()) return QuantumValue(false);
+        uint8_t diff = 0;
+        for (size_t i = 0; i < a.size(); i++) diff |= (uint8_t)a[i] ^ (uint8_t)b[i];
+        return QuantumValue(diff == 0); });
+
+    // ── Time ─────────────────────────────────────────────────────────────
+    // time() — Unix timestamp in seconds (as double)
+    reg("time", [](std::vector<QuantumValue>) -> QuantumValue
+        {
+        auto now = std::chrono::system_clock::now().time_since_epoch();
+        return QuantumValue(std::chrono::duration<double>(now).count()); });
+
+    // clock() — monotonic high-resolution time in seconds (for benchmarking)
+    reg("clock", [](std::vector<QuantumValue>) -> QuantumValue
+        {
+        auto now = std::chrono::steady_clock::now().time_since_epoch();
+        return QuantumValue(std::chrono::duration<double>(now).count()); });
+
+    // sleep(seconds) — pause execution for given number of seconds
+    reg("sleep", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (!args.empty()) {
+            int ms = (int)(args[0].asNumber() * 1000.0);
+            std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+        }
+        return QuantumValue(); });
 }
 
 // ─── Array methods ────────────────────────────────────────────────────────────

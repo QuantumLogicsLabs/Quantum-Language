@@ -284,12 +284,18 @@ void Compiler::compileIf(IfStmt &s, int line)
     compileExpr(*s.condition);
     size_t thenJump = emitJump(Op::JUMP_IF_FALSE, line);
     emit(Op::POP, 0, line);
+    beginScope();
     compileNode(*s.thenBranch);
+    endScope(line);
     size_t elseJump = emitJump(Op::JUMP, line);
     patchJump(thenJump);
     emit(Op::POP, 0, line);
     if (s.elseBranch)
+    {
+        beginScope();
         compileNode(*s.elseBranch);
+        endScope(line);
+    }
     patchJump(elseJump);
 }
 
