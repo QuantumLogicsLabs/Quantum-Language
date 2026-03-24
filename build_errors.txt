@@ -1,6 +1,60 @@
+C:\Programming\Quantum Language\src\Lexer.cpp:382:45: warning: multi-character character constant [-Wmultichar]
+  382 |                     if (!inDoubleQ && ch == '\'\'' && !inFormat)
+      |                                             ^~~~~~
+C:\Programming\Quantum Language\src\Lexer.cpp: In member function 'Token Lexer::readIdentifierOrKeyword()':
+C:\Programming\Quantum Language\src\Lexer.cpp:382:42: warning: comparison is always false due to limited range of data type [-Wtype-limits]
+  382 |                     if (!inDoubleQ && ch == '\'\'' && !inFormat)
+      |                                       ~~~^~~~~~~~~
+C:\Programming\Quantum Language\src\Parser.cpp: In member function 'ASTNodePtr Parser::parseInputStmt()':
+C:\Programming\Quantum Language\src\Parser.cpp:1954:73: warning: missing initializer for member 'InputStmt::lvalueTarget' [-Wmissing-field-initializers]
+ 1954 |     return std::make_unique<ASTNode>(InputStmt{target, std::move(prompt)}, ln);
+      |                                                                         ^
+C:\Programming\Quantum Language\src\Vm.cpp: In lambda function:
+C:\Programming\Quantum Language\src\Vm.cpp:1613:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+ 1613 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r+=s[i];
+      |               ^
+C:\Programming\Quantum Language\src\Vm.cpp:1623:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+ 1623 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r->push_back(arr[i]);
+      |               ^
 C:\Programming\Quantum Language\src\main.cpp:55:31: warning: 'std::shared_ptr<Chunk> loadEmbeddedBytecode(const std::string&)' defined but not used [-Wunused-function]
    55 | static std::shared_ptr<Chunk> loadEmbeddedBytecode(const std::string &exePath)
       |                               ^~~~~~~~~~~~~~~~~~~~
+C:\Programming\Quantum Language\src\Lexer.cpp:382:45: warning: multi-character character constant [-Wmultichar]
+  382 |                     if (!inDoubleQ && ch == '\'\'' && !inFormat)
+      |                                             ^~~~~~
+C:\Programming\Quantum Language\src\Lexer.cpp: In member function 'Token Lexer::readIdentifierOrKeyword()':
+C:\Programming\Quantum Language\src\Lexer.cpp:382:42: warning: comparison is always false due to limited range of data type [-Wtype-limits]
+  382 |                     if (!inDoubleQ && ch == '\'\'' && !inFormat)
+      |                                       ~~~^~~~~~~~~
+C:\Programming\Quantum Language\src\Parser.cpp: In member function 'ASTNodePtr Parser::parseInputStmt()':
+C:\Programming\Quantum Language\src\Parser.cpp:1954:73: warning: missing initializer for member 'InputStmt::lvalueTarget' [-Wmissing-field-initializers]
+ 1954 |     return std::make_unique<ASTNode>(InputStmt{target, std::move(prompt)}, ln);
+      |                                                                         ^
+C:\Programming\Quantum Language\src\Vm.cpp: In lambda function:
+C:\Programming\Quantum Language\src\Vm.cpp:1613:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+ 1613 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r+=s[i];
+      |               ^
+C:\Programming\Quantum Language\src\Vm.cpp:1623:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+ 1623 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r->push_back(arr[i]);
+      |               ^
 C:\Programming\Quantum Language\src\main.cpp:55:31: warning: 'std::shared_ptr<Chunk> loadEmbeddedBytecode(const std::string&)' defined but not used [-Wunused-function]
    55 | static std::shared_ptr<Chunk> loadEmbeddedBytecode(const std::string &exePath)
       |                               ^~~~~~~~~~~~~~~~~~~~
+C:\Programming\Quantum Language\src\Lexer.cpp:382:45: warning: multi-character character constant [-Wmultichar]
+  382 |                     if (!inDoubleQ && ch == '\'\'' && !inFormat)
+      |                                             ^~~~~~
+C:\Programming\Quantum Language\src\Lexer.cpp: In member function 'Token Lexer::readIdentifierOrKeyword()':
+C:\Programming\Quantum Language\src\Lexer.cpp:382:42: warning: comparison is always false due to limited range of data type [-Wtype-limits]
+  382 |                     if (!inDoubleQ && ch == '\'\'' && !inFormat)
+      |                                       ~~~^~~~~~~~~
+C:\Programming\Quantum Language\src\Parser.cpp: In member function 'ASTNodePtr Parser::parseInputStmt()':
+C:\Programming\Quantum Language\src\Parser.cpp:1954:73: warning: missing initializer for member 'InputStmt::lvalueTarget' [-Wmissing-field-initializers]
+ 1954 |     return std::make_unique<ASTNode>(InputStmt{target, std::move(prompt)}, ln);
+      |                                                                         ^
+C:\Programming\Quantum Language\src\Vm.cpp: In lambda function:
+C:\Programming\Quantum Language\src\Vm.cpp:1613:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+ 1613 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r+=s[i];
+      |               ^
+C:\Programming\Quantum Language\src\Vm.cpp:1623:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+ 1623 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r->push_back(arr[i]);
+      |               ^

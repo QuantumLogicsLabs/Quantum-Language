@@ -18,6 +18,8 @@ file(GLOB_RECURSE QUANTUM_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 list(FILTER QUANTUM_SOURCES EXCLUDE REGEX ".*main_vm\\.cpp$")
 
 # ── quantum  — compiler + bundler  (quantum hello.sa → hello.exe) ─────────────
+#    Compiled with QUANTUM_MODE_COMPILER=1.
+#    Uses quantum_stub.exe (below) as the template when bundling .exe files.
 add_executable(quantum ${QUANTUM_SOURCES})
 target_compile_definitions(quantum PRIVATE QUANTUM_MODE_COMPILER=1)
 if(WIN32)
@@ -25,17 +27,21 @@ if(WIN32)
 endif()
 
 # ── qrun  — pure interpreter  (qrun hello.sa → runs in-place, no .exe) ────────
+#    Compiled with QRUN_MODE=1.
 add_executable(qrun ${QUANTUM_SOURCES})
 target_compile_definitions(qrun PRIVATE QRUN_MODE=1)
 if(WIN32)
     target_link_libraries(qrun advapi32)
 endif()
 
-# ── quantum_stub  — standalone runner used as the .exe template ────────────────
-# Compiled WITHOUT any mode defines so it only runs embedded bytecode.
-# quantum.exe copies THIS file (not itself) when bundling hello.sa → hello.exe.
+# ── quantum_stub  — standalone runtime template ────────────────────────────────
+#    Compiled WITHOUT any mode defines.
+#    When quantum.exe bundles hello.sa it copies THIS binary as hello.exe,
+#    then appends the bytecode payload.  Because quantum_stub.exe has no
+#    QUANTUM_MODE_COMPILER define, it enters the embedded-bytecode branch on
+#    startup and executes the payload — exactly what hello.exe must do.
 add_executable(quantum_stub ${QUANTUM_SOURCES})
-# No compile definitions — this is the pure "run embedded bytecode" binary.
+# deliberately no target_compile_definitions here
 if(WIN32)
     target_link_libraries(quantum_stub advapi32)
 endif()
@@ -43,5 +49,5 @@ endif()
 message(STATUS "Quantum v2.0.0 — Bytecode VM")
 message(STATUS "  Sources  : ${QUANTUM_SOURCES}")
 message(STATUS "  Binaries : quantum  qrun  quantum_stub")
-message(STATUS "  Compile  : quantum hello.sa   ->  hello.exe")
+message(STATUS "  Compile  : quantum hello.sa   ->  hello.exe  (uses quantum_stub as template)")
 message(STATUS "  Interpret: qrun    hello.sa   ->  runs directly")

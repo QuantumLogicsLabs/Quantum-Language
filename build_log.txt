@@ -1,8 +1,14 @@
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/msys64/ucrt64/bin/c++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
 -- Quantum v2.0.0 — Bytecode VM
 --   Sources  : C:/Programming/Quantum Language/src/Compiler.cpp;C:/Programming/Quantum Language/src/Disassembler.cpp;C:/Programming/Quantum Language/src/Lexer.cpp;C:/Programming/Quantum Language/src/Parser.cpp;C:/Programming/Quantum Language/src/Serializer.cpp;C:/Programming/Quantum Language/src/Token.cpp;C:/Programming/Quantum Language/src/TypeChecker.cpp;C:/Programming/Quantum Language/src/Value.cpp;C:/Programming/Quantum Language/src/Vm.cpp;C:/Programming/Quantum Language/src/main.cpp
---   Binaries : quantum  qrun
---   Compile  : quantum hello.sa   ->  hello.exe
+--   Binaries : quantum  qrun  quantum_stub
+--   Compile  : quantum hello.sa   ->  hello.exe  (uses quantum_stub as template)
 --   Interpret: qrun    hello.sa   ->  runs directly
--- Configuring done (0.2s)
--- Generating done (0.6s)
+-- Configuring done (29.6s)
+-- Generating done (3.4s)
 -- Build files have been written to: C:/Programming/Quantum Language/build
