@@ -6,6 +6,6 @@
 -- Detecting CXX compile features - done
 -- Quantum v2.0.0 — Bytecode VM  (static linking enabled)
 --   Binaries : quantum  qrun  quantum_stub
--- Configuring done (1.7s)
--- Generating done (0.2s)
+-- Configuring done (2.7s)
+-- Generating done (0.1s)
 -- Build files have been written to: C:/Programming/Quantum Language/build
