@@ -1,4 +1,5 @@
 #include "Disassembler.h"
+#include "Vm.h"
 #include <iomanip>
 #include <ostream>
 
@@ -240,4 +241,14 @@ void disassembleChunk(const Chunk &chunk, std::ostream &out)
         disassembleInstruction(chunk, i, out);
 
     out << "\n";
+
+    for (const auto &constant : chunk.constants)
+    {
+        if (!constant.isFunction())
+            continue;
+        auto fn = constant.asFunction();
+        if (!fn || !fn->chunk || fn->chunk.get() == &chunk)
+            continue;
+        disassembleChunk(*fn->chunk, out);
+    }
 }

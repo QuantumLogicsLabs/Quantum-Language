@@ -32,6 +32,41 @@ static double toNum2(const QuantumValue &v, const std::string &ctx)
     throw TypeError("Expected number in " + ctx + ", got " + v.typeName());
 }
 
+static std::string defaultTestInput(const std::vector<QuantumValue> &args)
+{
+    std::string prompt = args.empty() ? "" : args[0].toString();
+    std::string lower = prompt;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c)
+                   { return static_cast<char>(std::tolower(c)); });
+
+    if (lower.empty())
+        return "q";
+    if (lower.find("press enter") != std::string::npos)
+        return "";
+    if (lower.find("continue") != std::string::npos)
+        return "";
+    if (lower.find("enter command") != std::string::npos)
+        return "q";
+    if (lower.find("play again") != std::string::npos)
+        return "n";
+    if (lower.find("(y/n)") != std::string::npos)
+        return "n";
+    if (lower.find("ai type") != std::string::npos)
+        return "random";
+    if (lower.find("rounds") != std::string::npos)
+        return "1";
+
+    std::smatch match;
+    if (std::regex_search(lower, match, std::regex(R"((\d+)\s*-\s*(\d+))")))
+        return match[2].str();
+
+    if (lower.find("choice") != std::string::npos)
+        return "9";
+
+    return "";
+}
+
 void VM::registerNatives()
 {
     auto reg = [&](const std::string &name, QuantumNativeFunc fn)
@@ -45,14 +80,14 @@ void VM::registerNatives()
     // ── I/O ───────────────────────────────────────────────────────────────
     reg("__input__", [](std::vector<QuantumValue> args) -> QuantumValue
         {
-        if (g_testMode) return QuantumValue(std::string(""));
+        if (g_testMode) return QuantumValue(defaultTestInput(args));
         if (!args.empty()) std::cout << args[0].toString();
         std::string line;
         std::getline(std::cin, line);
         return QuantumValue(line); });
     reg("input", [](std::vector<QuantumValue> args) -> QuantumValue
         {
-        if (g_testMode) return QuantumValue(std::string(""));
+        if (g_testMode) return QuantumValue(defaultTestInput(args));
         if (!args.empty()) std::cout << args[0].toString();
         std::string line;
         std::getline(std::cin, line);
@@ -559,6 +594,42 @@ void VM::registerNatives()
         if(args.empty()||!args[0].isArray()) throw RuntimeError("sum() requires array");
         double s=0; for(auto &v:*args[0].asArray()) s+=toNum2(v,"sum");
         return QuantumValue(s); });
+    reg("any", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) return QuantumValue(false);
+        if (args[0].isArray()) {
+            for (auto &v : *args[0].asArray())
+                if (v.isTruthy())
+                    return QuantumValue(true);
+            return QuantumValue(false);
+        }
+        if (args[0].isString())
+            return QuantumValue(!args[0].asString().empty());
+        if (args[0].isDict()) {
+            for (auto &[k, v] : *args[0].asDict())
+                if (v.isTruthy())
+                    return QuantumValue(true);
+            return QuantumValue(false);
+        }
+        return QuantumValue(args[0].isTruthy()); });
+    reg("all", [](std::vector<QuantumValue> args) -> QuantumValue
+        {
+        if (args.empty()) return QuantumValue(true);
+        if (args[0].isArray()) {
+            for (auto &v : *args[0].asArray())
+                if (!v.isTruthy())
+                    return QuantumValue(false);
+            return QuantumValue(true);
+        }
+        if (args[0].isString())
+            return QuantumValue(!args[0].asString().empty());
+        if (args[0].isDict()) {
+            for (auto &[k, v] : *args[0].asDict())
+                if (!v.isTruthy())
+                    return QuantumValue(false);
+            return QuantumValue(true);
+        }
+        return QuantumValue(args[0].isTruthy()); });
     reg("isinstance", [](std::vector<QuantumValue> args) -> QuantumValue
         {
         if(args.size()<2) throw RuntimeError("isinstance() requires 2 args");

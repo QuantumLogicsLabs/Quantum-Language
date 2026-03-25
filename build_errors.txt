@@ -1,0 +1,21 @@
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp: In lambda function:
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp:852:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  852 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r+=s[i];
+      |               ^
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp:862:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  862 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r->push_back(arr[i]);
+      |               ^
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp: In lambda function:
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp:852:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  852 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r+=s[i];
+      |               ^
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp:862:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  862 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r->push_back(arr[i]);
+      |               ^
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp: In lambda function:
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp:852:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  852 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r+=s[i];
+      |               ^
+C:\Programming\Quantum Language\src\vm\VmNatives.cpp:862:15: warning: suggest explicit braces to avoid ambiguous 'else' [-Wdangling-else]
+  862 |             if(step>0) for(int i=start;i<stop;i+=step) if(i<len) r->push_back(arr[i]);
+      |               ^

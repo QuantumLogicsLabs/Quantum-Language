@@ -62,6 +62,14 @@ void Compiler::compileClassDecl(ClassDecl &s, int line)
 
     auto bindClassField = [&](ASTNodePtr &member)
     {
+        if (member->is<ClassDecl>())
+        {
+            auto &nested = member->as<ClassDecl>();
+            compileClassDecl(nested, member->line);
+            emitLoad(nested.name, member->line);
+            emit(Op::BIND_METHOD, addStr(nested.name), member->line);
+            return true;
+        }
         if (member->is<VarDecl>())
         {
             auto &field = member->as<VarDecl>();

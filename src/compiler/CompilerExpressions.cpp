@@ -104,9 +104,8 @@ void Compiler::compileUnary(UnaryExpr &e, int line)
 void Compiler::compileAssign(AssignExpr &e, int line)
 {
     const std::string normalizedOp =
-        e.op == "post+=" ? "+=" :
-        e.op == "post-=" ? "-=" :
-        e.op;
+        e.op == "post+=" ? "+=" : e.op == "post-=" ? "-="
+                                                   : e.op;
     bool compound = (normalizedOp != "=");
 
     static const std::unordered_map<std::string, Op> cops = {
@@ -428,28 +427,28 @@ void Compiler::compileTernary(TernaryExpr &e, int line)
 
 void Compiler::compileListComp(ListComp &e, int line)
 {
-    // Build result array as a local variable so we can load it inside the loop
+    CompilerState fnState("<listcomp>", current_);
+    fnState.isFunction = true;
+    CompilerState *prev = current_;
+    current_ = &fnState;
+
     beginScope();
+    const std::string resultName = "__result__";
 
-    // slot 0: result array
     emit(Op::MAKE_ARRAY, 0, line);
-    declareLocal("__result__", line);
-    int resultSlot = static_cast<int>(current_->locals.size()) - 1;
-    emit(Op::DEFINE_LOCAL, resultSlot, line);
+    declareLocal(resultName, line);
+    emit(Op::DEFINE_LOCAL, static_cast<int>(current_->locals.size()) - 1, line);
 
-    // Outer scope for iterator (slot 1)
     beginScope();
     compileExpr(*e.iterable);
     emit(Op::MAKE_ITER, 0, line);
     declareLocal("__iter__", line);
-    int iterSlot = static_cast<int>(current_->locals.size()) - 1;
-    emit(Op::DEFINE_LOCAL, iterSlot, line);
+    emit(Op::DEFINE_LOCAL, static_cast<int>(current_->locals.size()) - 1, line);
 
     int loopStart = static_cast<int>(chunk().code.size());
     beginLoop(loopStart);
     size_t exitJump = emitJump(Op::FOR_ITER, line);
 
-    // Inner scope: loop variables
     beginScope();
     for (auto &v : e.vars)
     {
@@ -457,18 +456,13 @@ void Compiler::compileListComp(ListComp &e, int line)
         emit(Op::DEFINE_LOCAL, static_cast<int>(current_->locals.size()) - 1, line);
     }
 
-    // Helper: load result array, load value, call push
     auto pushToResult = [&]()
     {
-        // val is on stack top. We need: push_fn (callee), val (arg).
-        // GET_MEMBER on array creates a bound native capturing the array.
-        // Sequence: val is on stack, load array, GET_MEMBER "push" -> push_fn on stack.
-        // Stack now: val, push_fn. SWAP -> push_fn, val. CALL 1.
-        emit(Op::LOAD_LOCAL, resultSlot, line);     // stack: ..., val, array
-        emit(Op::GET_MEMBER, addStr("push"), line); // stack: ..., val, push_fn
-        emit(Op::SWAP, 0, line);                    // stack: ..., push_fn, val
-        emit(Op::CALL, 1, line);                    // calls push_fn(val)
-        emit(Op::POP, 0, line);                     // discard return value
+        emitLoad(resultName, line);
+        emit(Op::GET_MEMBER, addStr("push"), line);
+        emit(Op::SWAP, 0, line);
+        emit(Op::CALL, 1, line);
+        emit(Op::POP, 0, line);
     };
 
     if (e.condition)
@@ -493,17 +487,35 @@ void Compiler::compileListComp(ListComp &e, int line)
         chunk().patch(ci, static_cast<int32_t>(chunk().code.size()) -
                               static_cast<int32_t>(ci) - 1);
 
-    endScope(line); // pop loop vars
+    endScope(line);
     emit(Op::LOOP, static_cast<int>(chunk().code.size()) - loopStart + 1, line);
     patchJump(exitJump);
-    endScope(line); // pop iterator
+    endScope(line);
     endLoop();
 
-    // Load result array, then end outer scope (which would pop result,
-    // but we want to leave it on stack). So load it, end scope (pops slot),
-    // but result is already pushed above the scope. Use DUP before endScope.
-    emit(Op::LOAD_LOCAL, resultSlot, line);
-    endScope(line); // pops result local from stack, but we just loaded a copy
+    emitLoad(resultName, line);
+    endScope(line);
+    emit(Op::RETURN, 0, line);
+    emit(Op::RETURN_NIL, 0, line);
+
+    auto result = fnState.chunk;
+    result->upvalueCount = static_cast<int>(fnState.upvalues.size());
+    auto uvDescs = std::make_shared<Array>();
+    for (auto &uv : fnState.upvalues)
+    {
+        auto desc = std::make_shared<Array>();
+        desc->push_back(QuantumValue(uv.isLocal ? 1.0 : 0.0));
+        desc->push_back(QuantumValue(static_cast<double>(uv.index)));
+        uvDescs->push_back(QuantumValue(desc));
+    }
+    result->constants.push_back(QuantumValue(uvDescs));
+
+    current_ = prev;
+
+    auto closureTpl = std::make_shared<Closure>(result);
+    emit(Op::LOAD_CONST, addConst(QuantumValue(closureTpl)), line);
+    emit(result->upvalueCount > 0 ? Op::MAKE_CLOSURE : Op::MAKE_FUNCTION, 0, line);
+    emit(Op::CALL, 0, line);
 }
 
 void Compiler::compileSuper(SuperExpr &e, int line)
@@ -541,6 +553,3 @@ void Compiler::compileArrow(ArrowExpr &e, int line)
     emit(Op::DEREF, 0, line);
     emit(Op::GET_MEMBER, addStr(e.member), line);
 }
-
-// ─── compileFunction ─────────────────────────────────────────────────────────
-
