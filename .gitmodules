@@ -22,3 +22,7 @@
 	path = docs/design
 	url = https://github.com/SENODROOM/QLang-DesginDocs.git
 	branch = main
+[submodule "tests"]
+	path = docs/tests
+	url = https://github.com/QuantumLogicsLabs/QuantumFailedTests.git
+	branch = main
