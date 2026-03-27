@@ -1,28 +1,28 @@
 Memory Usage Profile
 ===================
 
-Time: 2.026557922e-05s
+Time: 3.933906555e-05s
 Label: Initial
 Allocated: 300 bytes
 Free: 724 bytes
 Utilization: 29.30%
 -------------------
 
-Time: 6.580352783e-05s
+Time: 0.0001227855682s
 Label: After malloc 300
 Allocated: 600 bytes
 Free: 424 bytes
 Utilization: 58.59%
 -------------------
 
-Time: 0.0001037120819s
+Time: 0.0001971721649s
 Label: After malloc 400
 Allocated: 1000 bytes
 Free: 24 bytes
 Utilization: 97.66%
 -------------------
 
-Time: 0.0001356601715s
+Time: 0.0002541542053s
 Label: After free
 Allocated: 1000 bytes
 Free: 24 bytes
