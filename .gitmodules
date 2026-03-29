@@ -23,6 +23,6 @@
 	url = https://github.com/SENODROOM/QLang-DesginDocs.git
 	branch = main
 [submodule "tests"]
-	path = docs/tests
+	path = tests
 	url = https://github.com/QuantumLogicsLabs/QuantumFailedTests.git
 	branch = main
