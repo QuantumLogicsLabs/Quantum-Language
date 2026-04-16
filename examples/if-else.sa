@@ -1,15 +1,15 @@
-let chuchu = 234;
-let kutta = 234;
-if(chuchu>100){
-    print(chuchu);
+let num1 = 234;
+let num2s = 234;
+if(num1>100){
+    print(num1);
 }
 else{
-    print(kutta);
+    print(num2);
 }
-fn ChuzaArmy(kutta,chuchu){
-    let chuchu="CHUCHU ARMO is the best Armo"
-    print(chuchu);
+fn printSecondArg(num2,num1){
+    let num1="num1 is given as second argument"
+    print(num1);
     return 0;
 }
 
-print(ChuzaArmy(chuchu,kutta));
+print(printSecondArg(num1,num2));

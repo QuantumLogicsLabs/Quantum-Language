@@ -1,6 +1,6 @@
 let a=96;
 if(a<=69){
-    print("KUTTA IS VERY HORNY");
+    print("Value is Less than or equal to 69.");
 }else{
-    print("CHUCHU is GREAT");
+    print("Value is greater than 69.");
 }
